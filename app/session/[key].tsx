@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -55,7 +56,7 @@ export default function SessionScreen() {
           title: title.current,
           headerRight: () => (
             <Pressable hitSlop={10} onPress={() => setActions(true)} disabled={!session} accessibilityRole="button" accessibilityLabel="Session actions">
-              <Text style={styles.menu}>⋯</Text>
+              <Ionicons name="ellipsis-vertical" size={22} color={colors.text} />
             </Pressable>
           ),
         }}
@@ -99,7 +100,6 @@ export default function SessionScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  menu: { color: colors.text, fontSize: 24, lineHeight: 26 },
   gone: { flex: 1, alignItems: "center", justifyContent: "center" },
   muted: { color: colors.muted },
 });

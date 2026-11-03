@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Link, Stack, router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -42,7 +43,7 @@ export default function Agents() {
           headerRight: () => (
             <Link href="/settings" asChild>
               <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel="Settings">
-                <Text style={styles.headerIcon}>⚙</Text>
+                <Ionicons name="settings-outline" size={24} color={colors.text} />
               </Pressable>
             </Link>
           ),
@@ -97,7 +98,7 @@ export default function Agents() {
           accessibilityLabel="Open a project"
           style={({ pressed }) => [styles.fab, { bottom: insets.bottom + 20 }, pressed && styles.fabPressed]}
         >
-          <Text style={styles.fabText}>+</Text>
+          <Ionicons name="add" size={32} color={colors.onAccent} />
         </Pressable>
       )}
       <NewSessionSheet space={startIn} onClose={() => setStartIn(null)} />
@@ -109,7 +110,6 @@ export default function Agents() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: space.md, paddingTop: space.md },
-  headerIcon: { color: colors.text, fontSize: 22 },
   banner: { flexDirection: "row", alignItems: "center", gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: space.md, marginBottom: space.md - 2 },
   bannerText: { color: colors.text, fontSize: 14, flex: 1 },
   update: { backgroundColor: colors.accent + "22", borderColor: colors.accent, borderWidth: 1 },
@@ -130,5 +130,4 @@ const styles = StyleSheet.create({
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
   },
   fabPressed: { opacity: 0.8 },
-  fabText: { color: colors.onAccent, fontSize: 32, lineHeight: 34, fontWeight: "400" },
 });

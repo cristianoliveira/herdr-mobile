@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Session } from "../hc/fleet";
 import type { Space } from "../spaces";
@@ -36,7 +37,7 @@ export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Pro
               accessibilityLabel={`New agent in ${sp.name}`}
               style={({ pressed }) => [styles.add, pressed && styles.addPressed]}
             >
-              <Text style={styles.addText}>+</Text>
+              <Ionicons name="add" size={20} color={colors.text} />
             </Pressable>
           </View>
           {sp.agents.map((s) => (
@@ -94,7 +95,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   add: { width: 32, height: 32, borderRadius: radius.full, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
   addPressed: { backgroundColor: colors.surfaceHigh },
-  addText: { color: colors.text, fontSize: 20, lineHeight: 22 },
   row: { flexDirection: "row", alignItems: "center", gap: gap.md, paddingLeft: gap.sm, paddingRight: gap.sm, paddingVertical: gap.md, borderRadius: radius.md },
   child: { paddingLeft: gap.xl + gap.sm },
   rowPressed: { backgroundColor: colors.surface },
