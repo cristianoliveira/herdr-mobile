@@ -16,9 +16,7 @@ An Android and iOS client for [herdr-core](https://github.com/herdrdev/herdr-cor
   folder, as a new tab there. The round + opens a project from `~/workspace`:
   a new space with nvim, deltoids, gob and Pi, like the desktop app's
   new-space, or a new Pi in the project's space when it has one.
-- **Manage:** interrupt, kill, keep alive.
-- **Notifications:** when an agent needs you, finishes a turn, or exits, also
-  with the app closed (a quiet foreground notification keeps it connected).
+- **Manage:** interrupt, copy output, kill.
 
 ## How it connects
 

@@ -61,8 +61,6 @@ export type RunSpec = {
 
 export type ExecOutput = { code: number | null; stdout: string; stderr: string };
 
-export type Transition = { session: Session; kind: "blocked" | "turn" | "error" | "exited" };
-
 export type OpenTransport = (config: MachineConfig) => Promise<Transport>;
 
 export type HerdrTab = { id: string; name?: string; root?: unknown };
@@ -80,7 +78,6 @@ class Link {
   error?: string;
   conn?: HcConnection;
   terminals = new Map<string, Terminal>();
-  agents = new Set<string>();
   machines: MachineView[] = [];
   private retryMs = 2000;
   private timer?: ReturnType<typeof setTimeout>;
@@ -91,7 +88,6 @@ class Link {
     readonly config: MachineConfig,
     private open: OpenTransport,
     private changed: () => void,
-    private event: (link: Link, e: HcEvent, before: Terminal | undefined) => void,
     private docChanged: (link: Link, on: string | null | undefined) => void,
   ) {}
 
@@ -176,7 +172,6 @@ class Link {
 
   private reset(terminals: Terminal[]) {
     this.terminals = new Map(terminals.map((t) => [t.address, t]));
-    for (const t of terminals) if (t.status) this.agents.add(t.address);
     this.changed();
   }
 
@@ -249,9 +244,6 @@ class Link {
         set({ keep: d.keep });
         break;
     }
-    if (this.terminals.get(addr)?.status) this.agents.add(addr);
-    this.event(this, e, before);
-    if (e.type === "removed") this.agents.delete(addr);
     this.changed();
   }
 }
@@ -259,7 +251,6 @@ class Link {
 export class Fleet {
   private links = new Map<string, Link>();
   private listeners = new Set<() => void>();
-  private transitionListeners = new Set<(t: Transition) => void>();
   private cached: FleetSnapshot | null = null;
   private docs = new Map<string, HerdrDoc | null>();
 
@@ -281,7 +272,6 @@ export class Fleet {
         c,
         this.open,
         () => this.changed(),
-        (l, e, before) => this.transition(l, e, before),
         (l, on) => void this.fetchDocs(l, on),
       );
       this.links.set(c.id, link);
@@ -308,11 +298,6 @@ export class Fleet {
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
-  }
-
-  onTransition(listener: (t: Transition) => void): () => void {
-    this.transitionListeners.add(listener);
-    return () => this.transitionListeners.delete(listener);
   }
 
   snapshot(): FleetSnapshot {
@@ -440,33 +425,6 @@ export class Fleet {
     return this.targets().find((t) => key.startsWith(t.coreId + ":"));
   }
 
-
-  private transition(link: Link, e: HcEvent, before: Terminal | undefined) {
-    const t = link.terminals.get(e.terminal!);
-    if (!t || !before || !link.conn) return;
-    let kind: Transition["kind"] | null = null;
-    if (e.type === "status" && t.status?.state !== before.status?.state) {
-      if (t.status?.state === "blocked") kind = "blocked";
-      else if (t.status?.state === "error") kind = "error";
-    } else if (e.type === "turn" && e.data?.state !== "blocked") {
-      kind = "turn";
-    } else if (e.type === "finished" && link.agents.has(e.terminal!)) {
-      kind = "exited";
-    }
-    if (!kind) return;
-    const session = this.session(link, t);
-    // A relayed copy of a terminal some link reaches directly stays quiet.
-    if (session.address.includes("/") && this.directlyReached(session.key)) return;
-    for (const l of this.transitionListeners) l({ session, kind });
-  }
-
-  private directlyReached(key: string): boolean {
-    for (const link of this.links.values()) {
-      const core = link.conn?.hello.core;
-      if (core && key.startsWith(core.id + ":")) return true;
-    }
-    return false;
-  }
 
   private changed() {
     this.cached = null;

@@ -1,9 +1,9 @@
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFleet } from "../src/fleet-store";
-import { updateSettings, useSettings, type Settings } from "../src/settings";
+import { updateSettings, useSettings } from "../src/settings";
 import { Row, Section } from "../src/ui/Group";
 import { colors, radius, space } from "../src/ui/theme";
 import { applyUpdate, currentUpdate, fetchUpdate, updatesEnabled } from "../src/updates";
@@ -42,35 +42,12 @@ export default function SettingsScreen() {
         </Row>
       </Section>
 
-      <Section title="Notify me when an agent">
-        <Toggle k="notifyBlocked" label="Needs me" hint="It is blocked on a question or permission, or reports an error" s={s} />
-        <Toggle k="notifyTurn" label="Finishes a turn" hint="It stops working and waits for you" s={s} />
-        <Toggle k="notifyExit" label="Exits" hint="Its program ends" s={s} />
-      </Section>
-
-      <Section title="Background">
-        <Toggle
-          k="background"
-          label="Keep watching when closed"
-          hint="A quiet notification keeps the app connected, so you hear about your agents with the app in the background."
-          s={s}
-        />
-      </Section>
-
       <Section title="App">
         <Row label={`Herdr Mobile ${Constants.expoConfig?.version ?? ""}`} hint={currentUpdate()}>
           {updatesEnabled && <UpdateButton />}
         </Row>
       </Section>
     </ScrollView>
-  );
-}
-
-function Toggle({ k, label, hint, s }: { k: keyof Settings; label: string; hint: string; s: Settings }) {
-  return (
-    <Row label={label} hint={hint}>
-      <Switch value={!!s[k]} onValueChange={(v) => void updateSettings({ [k]: v })} />
-    </Row>
   );
 }
 

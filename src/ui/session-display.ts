@@ -46,4 +46,3 @@ export function agentTitle(s: Session): string {
   return trimmed || raw;
 }
 
-export const needsYou = (s: Session) => s.terminal.state === "live" && (s.terminal.status?.state === "blocked" || s.terminal.status?.state === "error");

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fleet, useFleet } from "../../src/fleet-store";
-import { setViewingSession } from "../../src/notifications";
 import { useSettings } from "../../src/settings";
 import { TerminalInput, type TerminalInputHandle } from "../../src/terminal/TerminalInput";
 import { TerminalView, type TerminalHandle, type TerminalMode } from "../../src/terminal/TerminalView";
@@ -28,11 +27,6 @@ export default function SessionScreen() {
   const input = useRef<TerminalInputHandle>(null);
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
-
-  useEffect(() => {
-    setViewingSession(key);
-    return () => setViewingSession(null);
-  }, [key]);
 
   const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
