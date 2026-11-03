@@ -108,15 +108,20 @@ adb install -r /tmp/herdr-devclient.apk
 
 There are two paths. Pick by what changed.
 
-**Code change (TypeScript, UI, assets): publish an update.** Installed apps
-download it on their next launch, or when they come back to the foreground,
-and offer "Restart" on the Agents screen.
+**Code change (TypeScript, UI, assets): push to `main`.** CI
+(`.github/workflows/ci.yml`) runs typecheck and tests, then publishes an
+update to the EAS `preview` channel, which the APK is built to follow. A push
+that changes only Markdown publishes nothing. Installed apps download the
+update on their next launch, or when they come back to the foreground, and
+offer "Restart" on the Agents screen. CI needs the `EXPO_TOKEN` repository
+secret. When CI is down, publish by hand:
 
 ```sh
-pnpm run publish:update -- --message "what changed"
+pnpm run publish:update --message "what changed"
 ```
 
-It goes to the EAS `preview` channel, which the APK is built to follow.
+A push with a native change publishes under its new fingerprint, which only
+an APK built from that code loads.
 
 **Native change: build a new APK.** Native means the Kotlin module in
 `modules/`, a native dependency, or `app.json`. The runtime version is a
