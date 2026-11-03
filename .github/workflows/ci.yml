@@ -43,7 +43,7 @@ jobs:
   update-changes:
     name: Detect app changes
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     outputs:
       relevant: ${{ steps.diff.outputs.relevant }}
     steps:
