@@ -395,14 +395,6 @@ export class Fleet {
     return this.targets().find((t) => key.startsWith(t.coreId + ":"));
   }
 
-  /** Templates a direct link offers; machines reached through another have none here. */
-  async templates(target: Target): Promise<{ name: string; description?: string; command?: string }[]> {
-    if (target.on) return [];
-    const conn = this.links.get(target.linkId)?.conn;
-    if (!conn) return [];
-    const r = await conn.call<{ templates: { name: string; description?: string; command?: string; error?: string }[] }>("templates.list");
-    return r.templates.filter((t) => !t.error);
-  }
 
   private transition(link: Link, e: HcEvent, before: Terminal | undefined) {
     const t = link.terminals.get(e.terminal!);

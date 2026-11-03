@@ -120,7 +120,7 @@
     stopFling();
     if (e.touches.length !== 1) { touch = null; return; }
     var p = e.touches[0];
-    touch = { x: p.clientX, y: p.clientY, t: Date.now(), moved: false, scrolling: false };
+    touch = { x: p.clientX, y: p.clientY, t: Date.now(), moved: false, scrolling: false, zoomed: false, dx: 0, dy: 0 };
     acc = 0; velocity = 0; lastY = p.clientY; lastT = Date.now();
   }, { passive: true, capture: true });
 
@@ -128,9 +128,11 @@
     if (!touch) return;
     if (e.touches.length !== 1) { touch = null; return; }
     var p = e.touches[0], dx = p.clientX - touch.x, dy = p.clientY - touch.y;
+    touch.dx = dx; touch.dy = dy;
     if (!touch.moved && dx * dx + dy * dy > 100) {
       touch.moved = true;
       var zoomed = window.visualViewport && window.visualViewport.scale > 1.01;
+      touch.zoomed = !!zoomed;
       touch.scrolling = Math.abs(dy) > Math.abs(dx) && !zoomed;
       lastY = p.clientY; lastT = Date.now();
     }
@@ -146,6 +148,7 @@
   window.addEventListener("touchend", function (e) {
     if (!touch) return;
     if (!touch.moved && Date.now() - touch.t < 350) post({ type: "tap" });
+    else if (!touch.scrolling && !touch.zoomed && touch.dx > 80 && Math.abs(touch.dx) > 2 * Math.abs(touch.dy)) post({ type: "back" });
     else if (touch.scrolling) {
       e.stopPropagation();
       if (Math.abs(velocity) > 0.3 && Date.now() - lastT < 80) fling(velocity);

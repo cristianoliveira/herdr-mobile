@@ -22,6 +22,7 @@ type Props = {
   fontSize: number;
   /** A tap on the terminal: the screen opens the keyboard. */
   onTap?: () => void;
+  onSwipeBack?: () => void;
 };
 
 export type TerminalHandle = {
@@ -35,7 +36,7 @@ export type TerminalHandle = {
   scrollToBottom: () => void;
 };
 
-export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalView({ conn, address, cols, rows, pid, mode, fontSize, onTap }, ref) {
+export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalView({ conn, address, cols, rows, pid, mode, fontSize, onTap, onSwipeBack }, ref) {
   const web = useRef<WebView>(null);
   const [ready, setReady] = useState(false);
   const [fitSize, setFitSize] = useState<{ cols: number; rows: number } | null>(null);
@@ -151,6 +152,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
       bracketed.current = !!msg.bracketedPaste;
     }
     else if (msg.type === "tap") onTap?.();
+    else if (msg.type === "back") onSwipeBack?.();
     else if (msg.type === "input") stream.current?.write(utf8Encode(msg.data));
     else if (msg.type === "size") {
       setFitSize({ cols: msg.cols, rows: msg.rows });

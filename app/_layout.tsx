@@ -34,7 +34,6 @@ export default function Layout() {
         <Stack.Screen name="index" options={{ title: "Agents" }} />
         <Stack.Screen name="machines" options={{ title: "Machines" }} />
         <Stack.Screen name="session/[key]" options={{ title: "" }} />
-        <Stack.Screen name="new" options={{ title: "New session", presentation: "modal" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
     </SafeAreaProvider>
