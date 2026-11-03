@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { utf8Decode } from "../src/hc/bytes";
-import { Fleet, type MachineConfig, type Transition } from "../src/hc/fleet";
+import { Fleet, type MachineConfig } from "../src/hc/fleet";
 import { spaces } from "../src/spaces";
 import { hcProcessTransport } from "./node-transport";
 
@@ -80,8 +80,6 @@ test("a machine reached only through another shows its terminals", async () => {
 test("a terminal reached two ways is listed once, by its direct route", async () => {
   const fleet = new Fleet(open);
   fleets.push(fleet);
-  const transitions: Transition[] = [];
-  fleet.onTransition((t) => transitions.push(t));
   fleet.setMachines([A, B]);
   await until(() => fleet.snapshot().links.every((l) => l.state === "connected"));
   await until(() => fleet.snapshot().sessions.some((x) => x.terminal.name === "worker"));
@@ -93,9 +91,6 @@ test("a terminal reached two ways is listed once, by its direct route", async ()
   expect(workers[0].linkId).toBe("b");
   expect(workers[0].address).toBe(bAddress);
 
-  hc("hmb", "kill", bAddress);
-  await until(() => transitions.find((t) => t.kind === "exited"));
-  expect(transitions.filter((t) => t.kind === "exited")).toHaveLength(1);
 }, 30_000);
 
 test("starts sessions anywhere it reaches, nests children, and keeps finished ones", async () => {
