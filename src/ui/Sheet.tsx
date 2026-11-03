@@ -1,15 +1,16 @@
 import type { ReactNode } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useKeyboardHeight } from "./keyboard";
 import { colors } from "./theme";
 
-/** A bottom sheet: tap outside or press back to close. */
 export function Sheet({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.sheet, { paddingBottom: (keyboard || insets.bottom) + 12, maxHeight: "85%" }]}>
         <View style={styles.handle} />
         {children}
       </View>

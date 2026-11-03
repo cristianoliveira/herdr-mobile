@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { utf8Decode } from "../src/hc/bytes";
 import { Fleet, type MachineConfig, type Transition } from "../src/hc/fleet";
-import { herdrLabels } from "../src/herdr-app";
+import { spaces } from "../src/spaces";
 import { hcProcessTransport } from "./node-transport";
 
 const scratch = mkdtempSync(join(tmpdir(), "hm-fleet-"));
@@ -39,11 +39,13 @@ function until<T>(check: () => T | undefined | false, ms = 15_000): Promise<T> {
 
 let bAddress: string;
 
+const AGENT = ["sh", "-c", "printf '\\033]7501;state=idle:app=test\\033\\\\'; exec cat"];
+
 beforeAll(() => {
   mkdirSync(base.XDG_RUNTIME_DIR, { recursive: true });
   hc("hmb", "server", "start");
   hc("hma", "machine", "add", "--name", "b", "--session", "hmb", "--via", "sh -c");
-  const run = JSON.parse(hc("hmb", "run", "--bg", "--json", "--name", "worker", "cat"));
+  const run = JSON.parse(hc("hmb", "run", "--bg", "--json", "--name", "worker", "--", ...AGENT));
   bAddress = run.terminal?.address ?? run.address;
 }, 30_000);
 
@@ -131,28 +133,6 @@ test("starts sessions anywhere it reaches, nests children, and keeps finished on
   await until(() => !again.snapshot().sessions.some((x) => x.key === key));
 }, 40_000);
 
-test("sessions started from the phone land in the Herdr app's space for their folder", async () => {
-  const fleet = new Fleet(open);
-  fleets.push(fleet);
-  fleet.setMachines([A]);
-  const b = await until(() => fleet.targets().find((x) => x.on === "b"));
-
-  // B's layout, as the Herdr app keeps it in B's core.
-  const conn = (fleet as any).links.get("a").conn;
-  const layout = { spaces: [{ id: "sp_tmp", folder: "/tmp", tabs: [] }, { id: "sp_root", folder: "/", tabs: [] }] };
-  const current = await conn.call("doc.get", { name: "herdr-app", on: "b" });
-  await conn.call("doc.set", { name: "herdr-app", value: layout, version: current.version, on: "b" });
-
-  const labels = await herdrLabels(fleet, b, "/tmp/project");
-  expect(labels["herdr.space"]).toBe("sp_tmp");
-  expect(labels["herdr.tab"]).toMatch(/^tb[0-9a-f]{32}$/);
-  expect((await herdrLabels(fleet, b, "/elsewhere"))["herdr.space"]).toBe("sp_root");
-
-  const key = await fleet.run(b, { argv: ["cat"], cwd: "/tmp", labels });
-  const s = await until(() => fleet.snapshot().sessions.find((x) => x.key === key));
-  expect(s.terminal.labels["herdr.space"]).toBe("sp_tmp");
-}, 30_000);
-
 test("a line that went silent while the phone slept is noticed and replaced", async () => {
   let blackHole = false;
   let opened = 0;
@@ -179,4 +159,52 @@ test("a line that went silent while the phone slept is noticed and replaced", as
   blackHole = false;
   await until(() => fleet.snapshot().links[0].state === "connected", 8000);
   expect(opened).toBe(2);
+}, 30_000);
+
+test("spaces come from each machine's Herdr layout and from labels, with sub-agents under their parent", async () => {
+  const fleet = new Fleet(open);
+  fleets.push(fleet);
+  fleet.setMachines([A]);
+  const b = await until(() => fleet.targets().find((x) => x.on === "b"));
+  const conn = (fleet as any).links.get("a").conn;
+  const write = async (value: unknown) => {
+    const current = await conn.call("doc.get", { name: "herdr-app", on: "b" });
+    await conn.call("doc.set", { name: "herdr-app", value, version: current.version, on: "b" });
+  };
+  await write({
+    spaces: [
+      { id: "sp_zeta", name: "", folder: "/tmp/zeta", tabs: [] },
+      { id: "factory-x", name: "", folder: "/tmp/a", tabs: [] },
+      { id: "sp_alpha", name: "alpha", folder: "/tmp", tabs: [] },
+    ],
+  });
+
+  const project = join(scratch, "project");
+  mkdirSync(project, { recursive: true });
+  const agent = (labels: Record<string, string>) => fleet.run(b, { argv: AGENT, cwd: project, labels });
+  const parent = await agent({ "herdr.space": "sp_zeta", "herdr.tab": "tb1" });
+  const route = await until(() => fleet.route(parent));
+  const child = await route!.conn.call("terminal.run", { argv: AGENT, on: "b", cwd: project, parent: route!.address.split("/")[1] });
+  const loneKey = await agent({ "herdr.space": "sp_new", "herdr.tab": "tb2" });
+  const childKey = `${b.coreId}:${child.address.split("/").pop()}`;
+
+  const view = () => {
+    const snap = fleet.snapshot();
+    return spaces(snap.docs, fleet.targets().filter((t) => t.coreId === b.coreId), snap.sessions);
+  };
+  const ready = await until(() => {
+    const v = view();
+    const all = v.spaces.flatMap((s) => s.agents.map((a) => a.key));
+    return [parent, childKey, loneKey].every((k) => all.includes(k)) && v;
+  });
+
+  const names = ready.spaces.map((s) => s.name).filter((n) => ["alpha", "project", "zeta", "a"].includes(n));
+  expect(names).toEqual(["alpha", "project", "zeta", "a"]);
+  expect(ready.spaces.at(-1)!.factory).toBe(true);
+  const zeta = ready.spaces.find((s) => s.id === "sp_zeta")!;
+  expect(zeta.agents.map((a) => a.key)).toEqual([parent, childKey]);
+  expect(ready.spaces.find((s) => s.id === "sp_new")!.folder).toBe(project);
+
+  await write({ spaces: [{ id: "sp_later", name: "later", folder: "/srv", tabs: [] }] });
+  await until(() => view().spaces.some((s) => s.name === "later"));
 }, 30_000);

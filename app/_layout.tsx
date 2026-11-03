@@ -31,7 +31,7 @@ export default function Layout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "Agents" }} />
+        <Stack.Screen name="index" options={{ title: "Spaces" }} />
         <Stack.Screen name="machines" options={{ title: "Machines" }} />
         <Stack.Screen name="session/[key]" options={{ title: "" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />

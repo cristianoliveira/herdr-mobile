@@ -10,8 +10,6 @@ export type Settings = {
   notifyExit: boolean;
   /** Keep a foreground service so connections and notifications live while the app is closed. */
   background: boolean;
-  /** Label new sessions so the Herdr desktop app shows them. */
-  showInHerdr: boolean;
   /** How the bottom bar takes input: keys straight to the terminal, or a message hc pastes. */
   inputMode: "direct" | "message";
 };
@@ -23,7 +21,6 @@ const DEFAULTS: Settings = {
   notifyTurn: true,
   notifyExit: true,
   background: true,
-  showInHerdr: true,
   inputMode: "direct",
 };
 const KEY = "settings.v1";

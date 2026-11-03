@@ -4,19 +4,21 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fleet, useFleet, useMachines } from "../src/fleet-store";
 import type { Session } from "../src/hc/fleet";
-import { AgentList } from "../src/ui/AgentList";
+import { spaces as spacesOf, type Space } from "../src/spaces";
 import { Button } from "../src/ui/Button";
 import { Dot } from "../src/ui/Dot";
 import { explainError, linkColor } from "../src/ui/machine-display";
 import { NewSessionSheet } from "../src/ui/NewSessionSheet";
-import { agents } from "../src/ui/session-display";
+import { ProjectSheet } from "../src/ui/ProjectSheet";
+import { SpaceList } from "../src/ui/SpaceList";
 import { colors, radius, space } from "../src/ui/theme";
 import { applyUpdate, useUpdates } from "../src/updates";
 
 export default function Agents() {
-  const { links, sessions } = useFleet();
+  const { links, sessions, docs } = useFleet();
   const { machines, loaded } = useMachines();
-  const [starting, setStarting] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [startIn, setStartIn] = useState<Space | null>(null);
   const insets = useSafeAreaInsets();
   const { isUpdatePending } = useUpdates();
   const [, tick] = useState(0);
@@ -27,7 +29,9 @@ export default function Agents() {
 
   const down = links.filter((l) => l.state !== "connected");
   const connected = links.some((l) => l.state === "connected");
-  const none = agents(sessions).length === 0;
+  const targets = fleet.targets();
+  const { spaces, loose } = spacesOf(docs, targets, sessions);
+  const none = spaces.length === 0 && loose.length === 0;
 
   const open = (s: Session) => router.push({ pathname: "/session/[key]", params: { key: s.key } });
 
@@ -76,33 +80,35 @@ export default function Agents() {
           </Link>
         )}
 
-        <AgentList sessions={sessions} onSelect={open} />
+        <SpaceList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onStart={setStartIn} />
 
         {machines.length > 0 && connected && none && (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No agents running</Text>
+            <Text style={styles.emptyTitle}>No spaces yet</Text>
+            <Text style={styles.emptyText}>Tap + to open a project.</Text>
           </View>
         )}
       </ScrollView>
 
       {connected && (
         <Pressable
-          onPress={() => setStarting(true)}
+          onPress={() => setPicking(true)}
           accessibilityRole="button"
-          accessibilityLabel="New session"
+          accessibilityLabel="Open a project"
           style={({ pressed }) => [styles.fab, { bottom: insets.bottom + 20 }, pressed && styles.fabPressed]}
         >
           <Text style={styles.fabText}>+</Text>
         </Pressable>
       )}
-      <NewSessionSheet visible={starting} onClose={() => setStarting(false)} />
+      <NewSessionSheet space={startIn} onClose={() => setStartIn(null)} />
+      <ProjectSheet visible={picking} spaces={spaces} onClose={() => setPicking(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: space.md, paddingTop: space.lg },
+  content: { padding: space.md, paddingTop: space.md },
   headerIcon: { color: colors.text, fontSize: 22 },
   banner: { flexDirection: "row", alignItems: "center", gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: space.md, marginBottom: space.md - 2 },
   bannerText: { color: colors.text, fontSize: 14, flex: 1 },

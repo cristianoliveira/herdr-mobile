@@ -65,11 +65,22 @@ export type Transition = { session: Session; kind: "blocked" | "turn" | "error" 
 
 export type OpenTransport = (config: MachineConfig) => Promise<Transport>;
 
+export type HerdrTab = { id: string; name?: string; root?: unknown };
+export type HerdrSpace = { id: string; name?: string; folder?: string; tabs?: HerdrTab[] };
+export type HerdrDoc = { spaces?: HerdrSpace[] };
+
+export type FleetSnapshot = {
+  links: LinkView[];
+  sessions: Session[];
+  docs: Record<string, HerdrDoc | null>;
+};
+
 class Link {
   state: LinkView["state"] = "connecting";
   error?: string;
   conn?: HcConnection;
   terminals = new Map<string, Terminal>();
+  agents = new Set<string>();
   machines: MachineView[] = [];
   private retryMs = 2000;
   private timer?: ReturnType<typeof setTimeout>;
@@ -81,6 +92,7 @@ class Link {
     private open: OpenTransport,
     private changed: () => void,
     private event: (link: Link, e: HcEvent, before: Terminal | undefined) => void,
+    private docChanged: (link: Link, on: string | null | undefined) => void,
   ) {}
 
   view(): LinkView {
@@ -121,6 +133,7 @@ class Link {
       this.state = "connected";
       this.retryMs = 2000;
       this.changed();
+      this.docChanged(this, undefined);
     } catch (e) {
       this.lost(e instanceof Error ? e.message : String(e));
     }
@@ -163,6 +176,7 @@ class Link {
 
   private reset(terminals: Terminal[]) {
     this.terminals = new Map(terminals.map((t) => [t.address, t]));
+    for (const t of terminals) if (t.status) this.agents.add(t.address);
     this.changed();
   }
 
@@ -177,6 +191,7 @@ class Link {
         if (t.state === "finished" && !this.terminals.has(t.address)) this.terminals.set(t.address, t);
       }
       this.changed();
+      if (this.state === "connected") this.docChanged(this, undefined);
     } catch {
       // The next missed snapshot or reconnect tries again.
     } finally {
@@ -185,7 +200,11 @@ class Link {
   }
 
   private apply(e: HcEvent) {
-    if (e.type === "doc" || !e.terminal) return;
+    if (e.type === "doc") {
+      if (e.data?.name === "herdr-app") this.docChanged(this, e.machine ?? null);
+      return;
+    }
+    if (!e.terminal) return;
     const addr = e.terminal;
     const before = this.terminals.get(addr);
     const set = (patch: Partial<Terminal>) => before && this.terminals.set(addr, { ...before, ...patch });
@@ -230,7 +249,9 @@ class Link {
         set({ keep: d.keep });
         break;
     }
+    if (this.terminals.get(addr)?.status) this.agents.add(addr);
     this.event(this, e, before);
+    if (e.type === "removed") this.agents.delete(addr);
     this.changed();
   }
 }
@@ -239,7 +260,8 @@ export class Fleet {
   private links = new Map<string, Link>();
   private listeners = new Set<() => void>();
   private transitionListeners = new Set<(t: Transition) => void>();
-  private cached: { links: LinkView[]; sessions: Session[] } | null = null;
+  private cached: FleetSnapshot | null = null;
+  private docs = new Map<string, HerdrDoc | null>();
 
   constructor(private open: OpenTransport) {}
 
@@ -255,7 +277,13 @@ export class Fleet {
     }
     for (const c of configs) {
       if (this.links.has(c.id)) continue;
-      const link = new Link(c, this.open, () => this.changed(), (l, e, before) => this.transition(l, e, before));
+      const link = new Link(
+        c,
+        this.open,
+        () => this.changed(),
+        (l, e, before) => this.transition(l, e, before),
+        (l, on) => void this.fetchDocs(l, on),
+      );
       this.links.set(c.id, link);
       void link.connect();
     }
@@ -287,7 +315,7 @@ export class Fleet {
     return () => this.transitionListeners.delete(listener);
   }
 
-  snapshot(): { links: LinkView[]; sessions: Session[] } {
+  snapshot(): FleetSnapshot {
     if (this.cached) return this.cached;
     const sessions = new Map<string, Session>();
     for (const link of this.links.values()) {
@@ -298,7 +326,11 @@ export class Fleet {
         if (!prev || (prev.address.includes("/") && !s.address.includes("/"))) sessions.set(s.key, s);
       }
     }
-    this.cached = { links: [...this.links.values()].map((l) => l.view()), sessions: [...sessions.values()] };
+    this.cached = {
+      links: [...this.links.values()].map((l) => l.view()),
+      sessions: [...sessions.values()],
+      docs: Object.fromEntries(this.docs),
+    };
     return this.cached;
   }
 
@@ -382,12 +414,25 @@ export class Fleet {
     return { code: r.code, stdout: utf8Decode(fromBase64(r.stdout ?? "")), stderr: utf8Decode(fromBase64(r.stderr ?? "")) };
   }
 
-  /** Read an API document (such as the Herdr app's layout) on a machine. */
-  async doc<T>(target: Target, name: string): Promise<T | null> {
-    const conn = this.links.get(target.linkId)?.conn;
-    if (!conn) throw new Error(`${target.label} is not connected`);
-    const r = await conn.call<{ value: T | null }>("doc.get", { name, on: target.on });
-    return r.value;
+  private async fetchDocs(link: Link, on: string | null | undefined) {
+    const conn = link.conn;
+    if (!conn) return;
+    const wanted: { coreId: string; on?: string }[] = [];
+    if (on === undefined || on === null) wanted.push({ coreId: conn.hello.core.id });
+    for (const m of link.machines) {
+      if (m.state !== "connected") continue;
+      if (on === undefined || on === m.name) wanted.push({ coreId: m.id, on: m.name });
+    }
+    await Promise.all(
+      wanted.map(async ({ coreId, on }) => {
+        try {
+          const r = await conn.call<{ value: HerdrDoc | null }>("doc.get", { name: "herdr-app", on });
+          if (JSON.stringify(this.docs.get(coreId)) === JSON.stringify(r.value)) return;
+          this.docs.set(coreId, r.value);
+          this.changed();
+        } catch {}
+      }),
+    );
   }
 
   /** The place a session runs, to start more there or read its documents. */
@@ -405,7 +450,7 @@ export class Fleet {
       else if (t.status?.state === "error") kind = "error";
     } else if (e.type === "turn" && e.data?.state !== "blocked") {
       kind = "turn";
-    } else if (e.type === "finished") {
+    } else if (e.type === "finished" && link.agents.has(e.terminal!)) {
       kind = "exited";
     }
     if (!kind) return;

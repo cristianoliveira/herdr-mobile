@@ -2,8 +2,9 @@
 
 An Android and iOS client for [herdr-core](https://github.com/herdrdev/herdr-core) (`hc`).
 
-- **Agents:** the agents running on your machines, those that need you first.
-  Tap one to open it; swipe right on it to go back to the list.
+- **Spaces:** your Herdr desktop app spaces on every machine, each with its
+  agents (those that need you first, sub-agents under their parent). Factory
+  spaces come last. Tap an agent to open it; swipe right on it to go back.
 - **Terminal:** live, in color, at phone size or your desktop's size (switch
   in the ⋯ menu). Swipe up or down to scroll its history, or a full-screen program. Tap
   it and type: keys go straight to the terminal, and the keyboard suggests and
@@ -11,8 +12,10 @@ An Android and iOS client for [herdr-core](https://github.com/herdrdev/herdr-cor
   sends esc, tab, arrows, ctrl combinations and the clipboard instantly.
   Message mode is for prose to agents: Enter sends it, and hc pastes it and
   presses Enter.
-- **Start agents:** tap +, then Pi or Claude. It starts in your home folder on
-  that machine and opens.
+- **Start agents:** a space's + then Pi or Claude starts it in that space's
+  folder, as a new tab there. The round + opens a project from `~/workspace`:
+  a new space with nvim, deltoids, gob and Pi, like the desktop app's
+  new-space, or a new Pi in the project's space when it has one.
 - **Manage:** interrupt, kill, keep alive.
 - **Notifications:** when an agent needs you, finishes a turn, or exits, also
   with the app closed (a quiet foreground notification keeps it connected).
