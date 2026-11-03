@@ -55,6 +55,55 @@ Layout:
 - `src/terminal/`: xterm.js in a WebView, fed by hc's attach stream.
 - `app/`: screens (Expo Router).
 
+## Run on the Pixel 7 (dev client + Metro)
+
+A Pixel 7 is plugged into `mini` over USB. `adb devices` lists it; wake it with
+`adb shell input keyevent KEYCODE_WAKEUP`. `adb`, `scrcpy` and `maestro` come
+from `juanibiapina/dotfiles`.
+
+> **The Pixel only runs the development client.** It loads JavaScript from
+> Metro on `mini`, so TypeScript changes reach it without a build. A preview
+> APK has its JavaScript baked in and ignores Metro, which looks exactly like
+> "stuck on old code". Never install one on the Pixel; test release builds on
+> another phone.
+
+Point the phone at `mini`, start Metro, and open the app on it:
+
+```sh
+adb reverse tcp:8081 tcp:8081   # Metro
+adb reverse tcp:2222 tcp:22     # SSH: the app's machine "mini" is juan@127.0.0.1:2222
+gob add env EXPO_UNSTABLE_HEADLESS=1 pnpm exec expo start
+adb shell am start -a android.intent.action.VIEW \
+  -d "herdrmobile://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081" \
+  dev.juanibiapina.herdrmobile
+```
+
+The tunnels end when the phone is unplugged or the adb server restarts; run
+both `adb reverse` lines again. The SSH tunnel uses 2222 because the phone's
+`adbd` is unprivileged and cannot listen on port 22. The phone's key is in
+`~/.ssh/authorized_keys` as `herdr-mobile@Pixel-7`; reinstalling the app makes
+a new one.
+
+Drive the phone with Maestro, which finds elements by their text, and take a
+screenshot to show a change:
+
+```sh
+maestro --no-ansi hierarchy --compact     # what is on screen
+maestro studio                            # inspect and author taps
+adb exec-out screencap -p > shot.png
+```
+
+Only a native change needs a new dev client (see Release for what counts as
+native). Build it locally and install it over the old one:
+
+```sh
+export NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1
+nix develop ~/workspace/juanibiapina/dotfiles#android --command bash -c \
+  'pnpm exec eas build --platform android --profile development-pixel --local \
+     --non-interactive --output /tmp/herdr-devclient.apk'
+adb install -r /tmp/herdr-devclient.apk
+```
+
 ## Release
 
 There are two paths. Pick by what changed.
@@ -76,16 +125,31 @@ from different native code. `npx expo-updates runtimeversion:resolve
 --platform android` prints the current fingerprint; when it differs from the
 installed APK's (Settings shows which code is running), build a new APK.
 
+Build it locally on `mini` in the Android dev shell from
+`juanibiapina/dotfiles`. Cloud builds (`eas build` without `--local`) use the
+free plan's 15 monthly Android builds; run one only when asked.
+
 ```sh
-./scripts/build-apk.sh          # standalone arm64 release APK → herdr-mobile.apk
-PREBUILD=1 ./scripts/build-apk.sh   # after changing app.json or native dependencies
-adb install -r herdr-mobile.apk
+export NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1
+nix develop ~/workspace/juanibiapina/dotfiles#android --command bash -c \
+  'pnpm exec eas build --platform android --profile preview --local \
+     --non-interactive --output /tmp/herdr-mobile-v0.2.0-preview.apk'
 ```
 
-The script expects a NixOS box with the Android dev shell from
-`juanibiapina/dotfiles` (`nix develop ~/workspace/juanibiapina/dotfiles#android`).
-It limits Gradle to one worker and one JVM for low-memory machines. The release
-build is signed with the debug key.
+Every build, local or cloud, is signed with the EAS keystore, so a new APK
+installs over any earlier one. Builds signed with the debug key (before
+November 2026) must be uninstalled first.
+
+Publish it to the `Herdr Mobile releases` Drive folder, which keeps exactly one
+APK. Upload and share the new one before deleting the old one:
+
+```sh
+FOLDER=1kpy8XqZVcy9r0JOvXgYKt9bZ-QDF7wDf
+gog drive upload /tmp/herdr-mobile-v0.2.0-preview.apk --parent "$FOLDER"
+gog drive share <newFileId> --to anyone --force
+gog drive ls --parent "$FOLDER"
+gog drive delete <oldFileId> --force
+```
 
 ### iOS
 
