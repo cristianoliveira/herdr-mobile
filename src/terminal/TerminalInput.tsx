@@ -2,6 +2,7 @@
 // hidden field, and the message composer. Raw bytes go on the attach stream
 // (instant, and hc's "someone is typing" hold doesn't apply to them); before it
 // is attached, keys and text go through hc instead.
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Clipboard from "expo-clipboard";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -145,7 +146,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
   return (
     <>
       <ScrollView horizontal style={styles.keybar} contentContainerStyle={styles.keybarContent} keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false}>
-        <Key label={message ? "⌨" : "✉"} accessibilityLabel={message ? "Type directly" : "Write a message"} onPress={() => setMode(message ? "direct" : "message")} />
+        <Key label="" icon={message ? "keypad-outline" : "chatbox-outline"} accessibilityLabel={message ? "Type directly" : "Write a message"} onPress={() => setMode(message ? "direct" : "message")} />
         {!message && keyboardHeight === 0 && <Key label="keyboard" onPress={openKeyboard} />}
         <Key label="ctrl" active={ctrl} onPress={() => setCtrl((c) => !c)} />
         {KEY_BAR.map((k) => (
@@ -196,7 +197,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
   );
 });
 
-function Key({ label, onPress, active, accessibilityLabel }: { label: string; onPress: () => void; active?: boolean; accessibilityLabel?: string }) {
+function Key({ label, icon, onPress, active, accessibilityLabel }: { label: string; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void; active?: boolean; accessibilityLabel?: string }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -205,7 +206,7 @@ function Key({ label, onPress, active, accessibilityLabel }: { label: string; on
       style={({ pressed }) => [styles.key, active && styles.keyActive, pressed && styles.keyPressed]}
       onPress={onPress}
     >
-      <Text style={[styles.keyText, active && styles.keyTextActive]}>{label}</Text>
+      {icon ? <Ionicons name={icon} size={18} color={active ? colors.onAccent : colors.text} /> : <Text style={[styles.keyText, active && styles.keyTextActive]}>{label}</Text>}
     </Pressable>
   );
 }
