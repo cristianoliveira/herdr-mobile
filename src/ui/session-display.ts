@@ -23,10 +23,6 @@ export function sessionTitle(s: Session): string {
   return t.name || t.status?.title || t.title || t.foreground?.name || t.argv[0] || t.address;
 }
 
-function folderOf(s: Session): string {
-  return s.terminal.foreground?.cwd || s.terminal.cwd;
-}
-
 /** /home/me/x and /Users/me/x both read as ~/x. */
 export function shortPath(path: string): string {
   return path.replace(/^\/(home|Users)\/[^/]+/, "~");
@@ -41,39 +37,13 @@ export function ago(ms: number | null | undefined, now = Date.now()): string {
   return `${Math.floor(s / 86400)}d`;
 }
 
-/** The folder's last part: the project. */
-export function projectName(s: Session): string {
-  const path = folderOf(s).replace(/\/+$/, "");
-  return shortPath(path) === "~" ? "~" : path.slice(path.lastIndexOf("/") + 1) || "/";
-}
-
-/** What it is doing: the agent's title, the terminal's title, or its name. */
-export function taskName(s: Session): string {
+export function agentTitle(s: Session): string {
   const t = s.terminal;
-  const title = t.status?.title || t.title || t.name || "";
-  return title === projectName(s) ? "" : title;
-}
-
-function rank(state: string | undefined): number {
-  switch (state) {
-    case "blocked":
-    case "error":
-      return 0;
-    case "idle":
-    case "done":
-      return 1;
-    case "working":
-      return 2;
-    default:
-      return 3;
-  }
-}
-
-export function agents(sessions: Session[]): Session[] {
-  const changed = (s: Session) => s.terminal.status_ms ?? s.terminal.created_ms;
-  return sessions
-    .filter((s) => s.terminal.state === "live" && !!s.terminal.status)
-    .sort((a, b) => rank(a.terminal.status?.state) - rank(b.terminal.status?.state) || changed(b) - changed(a));
+  const raw = t.status?.title || t.title || t.name || t.status?.app || t.argv[0]?.split("/").pop() || sessionTitle(s);
+  const folder = t.cwd.replace(/\/+$/, "");
+  const base = folder.slice(folder.lastIndexOf("/") + 1);
+  const trimmed = raw.replace(/^\S{1,2}\s+-\s+/, "").replace(new RegExp(` - ${base.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`), "");
+  return trimmed || raw;
 }
 
 export const needsYou = (s: Session) => s.terminal.state === "live" && (s.terminal.status?.state === "blocked" || s.terminal.status?.state === "error");

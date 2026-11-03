@@ -6,7 +6,7 @@ import { AppState, Platform } from "react-native";
 import type { Transition } from "./hc/fleet";
 import { fleet } from "./fleet-store";
 import { getSettings } from "./settings";
-import { sessionTitle } from "./ui/session-display";
+import { agentTitle } from "./ui/session-display";
 
 let viewing: string | null = null;
 export const setViewingSession = (key: string | null) => {
@@ -76,7 +76,7 @@ async function notify({ session, kind }: Transition) {
   await Notifications.scheduleNotificationAsync({
     identifier: session.key,
     content: {
-      title: `${sessionTitle(session)} · ${session.machine}`,
+      title: `${agentTitle(session)} · ${session.machine}`,
       body,
       data: { key: session.key },
       categoryIdentifier: kind === "exited" ? undefined : "agent",

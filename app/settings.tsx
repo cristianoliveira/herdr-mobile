@@ -42,10 +42,6 @@ export default function SettingsScreen() {
         </Row>
       </Section>
 
-      <Section title="Herdr desktop app">
-        <Toggle k="showInHerdr" label="Show new sessions there" hint="Sessions you start here get a tab in Herdr, in the space for their folder." s={s} />
-      </Section>
-
       <Section title="Notify me when an agent">
         <Toggle k="notifyBlocked" label="Needs me" hint="It is blocked on a question or permission, or reports an error" s={s} />
         <Toggle k="notifyTurn" label="Finishes a turn" hint="It stops working and waits for you" s={s} />

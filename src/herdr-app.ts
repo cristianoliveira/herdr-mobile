@@ -6,7 +6,7 @@ import type { Fleet, Target } from "./hc/fleet";
 
 type Space = { id: string; folder?: string };
 
-const newId = (prefix: string) =>
+export const newId = (prefix: string) =>
   prefix + Array.from({ length: 32 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
 
 async function spaces(fleet: Fleet, target: Target): Promise<Space[]> {

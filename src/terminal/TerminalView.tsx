@@ -7,6 +7,7 @@ import { WebView } from "react-native-webview";
 import { toBase64, utf8Encode } from "../hc/bytes";
 import type { AttachStream, HcConnection } from "../hc/connection";
 import { colors } from "../ui/theme";
+import { rememberFitSize } from "./fit";
 import { TERMINAL_HTML } from "./terminal-html.generated";
 
 export type TerminalMode = "fit" | "full";
@@ -156,6 +157,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     else if (msg.type === "input") stream.current?.write(utf8Encode(msg.data));
     else if (msg.type === "size") {
       setFitSize({ cols: msg.cols, rows: msg.rows });
+      if (mode === "fit") rememberFitSize({ cols: msg.cols, rows: msg.rows });
       if (mode === "fit") stream.current?.resize(msg.cols, msg.rows);
     }
   };

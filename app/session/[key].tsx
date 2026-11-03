@@ -10,7 +10,7 @@ import { TerminalView, type TerminalHandle, type TerminalMode } from "../../src/
 import { SessionActions } from "../../src/ui/SessionActions";
 import { SheetAction } from "../../src/ui/Sheet";
 import { useKeyboardHeight } from "../../src/ui/keyboard";
-import { sessionTitle } from "../../src/ui/session-display";
+import { agentTitle } from "../../src/ui/session-display";
 import { colors, space } from "../../src/ui/theme";
 
 export default function SessionScreen() {
@@ -35,11 +35,24 @@ export default function SessionScreen() {
 
   const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
 
+  const seen = useRef(false);
+  const title = useRef("Session");
+  if (session) title.current = agentTitle(session);
+  const reachable = !!fleet.targetOf(key);
+  useEffect(() => {
+    if (session) seen.current = true;
+    else if (seen.current && reachable) {
+      const t = setTimeout(back, 0);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!session, reachable]);
+
   return (
     <View style={[styles.screen, { paddingBottom: keyboard }]}>
       <Stack.Screen
         options={{
-          title: session ? sessionTitle(session) : "Session",
+          title: title.current,
           headerRight: () => (
             <Pressable hitSlop={10} onPress={() => setActions(true)} disabled={!session} accessibilityRole="button" accessibilityLabel="Session actions">
               <Text style={styles.menu}>⋯</Text>
@@ -62,7 +75,7 @@ export default function SessionScreen() {
         />
       ) : (
         <View style={styles.gone}>
-          <Text style={styles.muted}>This session is not reachable right now.</Text>
+          <Text style={styles.muted}>{reachable ? "This session has ended." : "Reconnecting…"}</Text>
         </View>
       )}
       {live && route ? (
