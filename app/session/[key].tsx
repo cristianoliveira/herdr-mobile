@@ -85,8 +85,8 @@ export default function SessionScreen() {
       )}
       <SessionActions session={actions ? session ?? null : null} onClose={() => setActions(false)}>
         <SheetAction
-          label={view === "fit" ? "Show at desktop size" : "Fit to phone"}
-          detail={view === "fit" ? "Watch at its own size, scaled down; pinch to zoom" : "Reflow it to the phone's width"}
+          label={view === "fit" ? "Desktop size" : "Phone size"}
+          detail={view === "fit" ? "Its own size, scaled down; pinch to zoom" : "Reflow it to fit the phone"}
           onPress={() => {
             setActions(false);
             setView((m) => (m === "fit" ? "full" : "fit"));

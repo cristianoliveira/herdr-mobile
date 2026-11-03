@@ -414,14 +414,6 @@ export class Fleet {
     return { code: r.code, stdout: utf8Decode(fromBase64(r.stdout ?? "")), stderr: utf8Decode(fromBase64(r.stderr ?? "")) };
   }
 
-  /** Read an API document (such as the Herdr app's layout) on a machine. */
-  async doc<T>(target: Target, name: string): Promise<T | null> {
-    const conn = this.links.get(target.linkId)?.conn;
-    if (!conn) throw new Error(`${target.label} is not connected`);
-    const r = await conn.call<{ value: T | null }>("doc.get", { name, on: target.on });
-    return r.value;
-  }
-
   private async fetchDocs(link: Link, on: string | null | undefined) {
     const conn = link.conn;
     if (!conn) return;
