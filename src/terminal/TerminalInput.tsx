@@ -13,6 +13,7 @@ import { updateSettings, useSettings } from "../settings";
 import { colors, fonts, radius, space } from "../ui/theme";
 import { KEY_BAR, keyBytes } from "./keys";
 import type { TerminalHandle } from "./TerminalView";
+import { enterSends, SEND_DELAY_MS, withoutTypedNewline, type Change } from "./composer";
 import { typedText, withCtrl } from "./typing";
 
 export type TerminalInputHandle = { openKeyboard(): void };
@@ -36,6 +37,9 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
   const [sending, setSending] = useState(false);
   const capture = useRef<TextInput>(null);
   const mirror = useRef("");
+  const latest = useRef("");
+  const lastChange = useRef<Change | null>(null);
+  const pendingSend = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fail = (e: unknown) => Alert.alert("Could not reach it", e instanceof Error ? e.message : String(e));
   const call = (method: string, params: object) => route.conn.call(method, { terminal: route.address, ...params });
@@ -45,11 +49,25 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
     capture.current?.clear();
   };
 
+  const cancelPendingSend = () => {
+    if (pendingSend.current) clearTimeout(pendingSend.current);
+    pendingSend.current = null;
+  };
+
+  const changeText = (next: string) => {
+    latest.current = next;
+    setText(next);
+  };
+
   useEffect(() => {
-    setText("");
+    cancelPendingSend();
+    changeText("");
+    lastChange.current = null;
     setCtrl(false);
     resetMirror();
   }, [sessionKey]);
+
+  useEffect(() => cancelPendingSend, []);
 
   /** Bytes to the terminal; false when it is not attached yet. */
   const write = (chars: string) => {
@@ -102,22 +120,39 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
     resetMirror();
   };
 
-  const send = async (force = false) => {
-    if (!text.trim() || sending) return;
+  const send = async (message: string, force = false) => {
+    cancelPendingSend();
+    const body = message.trimEnd();
+    if (!body.trim() || sending) return;
     setSending(true);
     try {
-      await call("terminal.send", { text, force });
-      setText("");
+      await call("terminal.send", { text: body, force });
+      changeText("");
     } catch (e) {
       if (!force && e instanceof HcError && /block/i.test(`${e.kind} ${e.message}`)) {
         Alert.alert("It is waiting on a question", "Typing now may answer its dialog.", [
           { text: "Cancel", style: "cancel" },
-          { text: "Send anyway", onPress: () => void send(true) },
+          { text: "Send anyway", onPress: () => void send(body, true) },
         ]);
       } else fail(e);
     } finally {
       setSending(false);
     }
+  };
+
+  // Enter types a newline, and a lone newline the user typed sends. Dictation
+  // apps paste line breaks as Enter too, but right after or right before a burst
+  // of text; those stay as newlines in the message.
+  const onMessageChange = (next: string) => {
+    const now = Date.now();
+    const prev = latest.current;
+    cancelPendingSend();
+    const message = withoutTypedNewline(prev, next);
+    if (message !== null && enterSends(lastChange.current, now)) {
+      pendingSend.current = setTimeout(() => void send(message), SEND_DELAY_MS);
+    }
+    lastChange.current = { at: now, grew: next.length - prev.length };
+    changeText(next);
   };
 
   // Android keeps a hidden field focused after the keyboard is dismissed; blur
@@ -158,17 +193,15 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
           <TextInput
             style={styles.input}
             value={text}
-            onChangeText={setText}
+            onChangeText={onMessageChange}
             placeholder="Message"
             placeholderTextColor={colors.muted}
             autoCorrect
             spellCheck
             multiline
-            returnKeyType="send"
-            submitBehavior="submit"
-            onSubmitEditing={() => void send()}
+            submitBehavior="newline"
           />
-          <Pressable style={[styles.send, (!text.trim() || sending) && styles.off]} disabled={!text.trim() || sending} onPress={() => void send()}>
+          <Pressable style={[styles.send, (!text.trim() || sending) && styles.off]} disabled={!text.trim() || sending} onPress={() => void send(text)}>
             <Text style={styles.sendText}>{sending ? "…" : "Send"}</Text>
           </Pressable>
         </View>
