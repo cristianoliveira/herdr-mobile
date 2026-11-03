@@ -7,18 +7,33 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development",
+      "android": {
+        "buildType": "apk"
+      },
+      "node": "22.23.1",
       "pnpm": "10.21.0"
+    },
+    "development-pixel": {
+      "extends": "development",
+      "android": {
+        "gradleCommand": ":app:assembleDebug -PreactNativeArchitectures=arm64-v8a"
+      }
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview",
-      "pnpm": "10.21.0"
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=1 -x lintVitalAnalyzeRelease"
+      },
+      "node": "22.23.1",
+      "pnpm": "10.21.0",
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production",
-      "pnpm": "10.21.0"
+      "node": "22.23.1",
+      "pnpm": "10.21.0",
+      "channel": "production"
     }
   },
   "submit": {

@@ -1,0 +1,13 @@
+# .easignore replaces .gitignore for EAS uploads, so it repeats what the build must not see.
+# .local/ holds live Unix sockets (nvim, pi) that break the upload ("Cannot copy a socket file").
+.local/
+node_modules/
+.expo/
+/android/
+/ios/
+dist/
+*.apk
+src/terminal/terminal-html.generated.ts
+modules/*/android/build/
+modules/*/android/.cxx/
+**/.gradle/
