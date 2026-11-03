@@ -23,14 +23,7 @@ export function sessionTitle(s: Session): string {
   return t.name || t.status?.title || t.title || t.foreground?.name || t.argv[0] || t.address;
 }
 
-export function sessionDetail(s: Session): string {
-  const t = s.terminal;
-  if (t.state === "finished") return `exited${t.exit_code != null ? ` (${t.exit_code})` : ""}`;
-  const parts = [t.status?.state, t.status?.msg || (t.status ? undefined : t.foreground?.name)].filter(Boolean);
-  return parts.join(" · ") || "running";
-}
-
-export function folderOf(s: Session): string {
+function folderOf(s: Session): string {
   return s.terminal.foreground?.cwd || s.terminal.cwd;
 }
 
@@ -48,14 +41,6 @@ export function ago(ms: number | null | undefined, now = Date.now()): string {
   return `${Math.floor(s / 86400)}d`;
 }
 
-export type Section = { id: string; title: string; color: string; sessions: Session[] };
-
-/** The program's own name for itself (claude, pi), else what runs in it. */
-export function appName(s: Session): string {
-  const t = s.terminal;
-  return t.status?.app || t.template || t.foreground?.name || t.argv[0]?.split("/").pop() || "shell";
-}
-
 /** The folder's last part: the project. */
 export function projectName(s: Session): string {
   const path = folderOf(s).replace(/\/+$/, "");
@@ -69,44 +54,26 @@ export function taskName(s: Session): string {
   return title === projectName(s) ? "" : title;
 }
 
-/**
- * Live sessions by state, the way Herdr's Agents panel shows them: what needs
- * you, what waits for your next message, what works, then plain terminals.
- */
-export function sections(sessions: Session[]): Section[] {
-  const live = sessions.filter((s) => s.terminal.state === "live");
-  const recent = (a: Session, b: Session) => (b.terminal.status_ms ?? b.terminal.created_ms) - (a.terminal.status_ms ?? a.terminal.created_ms);
-  const by = (states: string[]) => live.filter((s) => states.includes(s.terminal.status?.state ?? "")).sort(recent);
-  const known = ["blocked", "error", "idle", "done", "working"];
-  return [
-    { id: "blocked", title: "Needs you", color: colors.blocked, sessions: by(["blocked", "error"]) },
-    { id: "idle", title: "Idle", color: colors.done, sessions: by(["idle", "done"]) },
-    { id: "working", title: "Working", color: colors.working, sessions: by(["working"]) },
-    {
-      id: "other",
-      title: "Terminals",
-      color: colors.muted,
-      sessions: live.filter((s) => !known.includes(s.terminal.status?.state ?? "")).sort((a, b) => b.terminal.created_ms - a.terminal.created_ms),
-    },
-  ].filter((x) => x.sessions.length > 0);
+function rank(state: string | undefined): number {
+  switch (state) {
+    case "blocked":
+    case "error":
+      return 0;
+    case "idle":
+    case "done":
+      return 1;
+    case "working":
+      return 2;
+    default:
+      return 3;
+  }
+}
+
+export function agents(sessions: Session[]): Session[] {
+  const changed = (s: Session) => s.terminal.status_ms ?? s.terminal.created_ms;
+  return sessions
+    .filter((s) => s.terminal.state === "live" && !!s.terminal.status)
+    .sort((a, b) => rank(a.terminal.status?.state) - rank(b.terminal.status?.state) || changed(b) - changed(a));
 }
 
 export const needsYou = (s: Session) => s.terminal.state === "live" && (s.terminal.status?.state === "blocked" || s.terminal.status?.state === "error");
-
-/** An agent that is not working: blocked on you, failed, or done and waiting for your next message. */
-export const waitingOnYou = (s: Session) =>
-  s.terminal.state === "live" && ["blocked", "error", "idle", "done"].includes(s.terminal.status?.state ?? "");
-
-/** Live sessions in the order the list shows them, for switching between them. */
-export function sessionOrder(sessions: Session[]): Session[] {
-  return sections(sessions).flatMap((x) => x.sessions);
-}
-
-export function matches(s: Session, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const t = s.terminal;
-  return [sessionTitle(s), s.machine, folderOf(s), t.argv.join(" "), t.status?.msg, t.status?.app, t.foreground?.name]
-    .filter(Boolean)
-    .some((v) => v!.toLowerCase().includes(q));
-}

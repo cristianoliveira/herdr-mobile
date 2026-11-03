@@ -2,23 +2,18 @@
 
 An Android and iOS client for [herdr-core](https://github.com/herdrdev/herdr-core) (`hc`).
 
-- **Agents:** every session on your machines, grouped the way Herdr's Agents
-  panel groups them: what needs you, what is idle waiting for your next
-  message, what is working, and plain terminals.
-- **Switching:** inside a session, a strip of every session across the top,
-  a "waiting" button that jumps to the next agent waiting on you, and the full
-  list from the title.
+- **Agents:** the agents running on your machines, those that need you first.
+  Tap one to open it; swipe right on it to go back to the list.
 - **Terminal:** live, in color, at phone size or your desktop's size (switch
-  in the ⋯ menu). Swipe to scroll its history, or a full-screen program. Tap
+  in the ⋯ menu). Swipe up or down to scroll its history, or a full-screen program. Tap
   it and type: keys go straight to the terminal, and the keyboard suggests and
   corrects words as in any app. The key bar
   sends esc, tab, arrows, ctrl combinations and the clipboard instantly.
   Message mode is for prose to agents: Enter sends it, and hc pastes it and
   presses Enter.
-- **Start sessions:** pick a machine (also one reached through another), browse
-  to a folder, and start a shell, an installed agent (Claude Code, pi, Codex, …),
-  a template, or any command, with an optional first task.
-- **Manage:** interrupt, kill, keep alive, remove finished sessions.
+- **Start agents:** tap +, then Pi or Claude. It starts in your home folder on
+  that machine and opens.
+- **Manage:** interrupt, kill, keep alive.
 - **Notifications:** when an agent needs you, finishes a turn, or exits, also
   with the app closed (a quiet foreground notification keeps it connected).
 
