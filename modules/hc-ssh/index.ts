@@ -10,9 +10,6 @@ type HcSshModule = {
   open(id: string, host: string, port: number, user: string, command: string, knownHostKey: string | null): Promise<{ hostKey: string }>;
   write(id: string, base64: string): void;
   close(id: string): void;
-  /** Start or update the foreground service that keeps connections alive in the background. */
-  startWatching(title: string, text: string): void;
-  stopWatching(): void;
   addListener<K extends keyof Events>(event: K, listener: Events[K]): EventSubscription;
 };
 
