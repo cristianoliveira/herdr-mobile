@@ -14,8 +14,6 @@ export type Settings = {
   showInHerdr: boolean;
   /** How the bottom bar takes input: keys straight to the terminal, or a message hc pastes. */
   inputMode: "direct" | "message";
-  /** Direct typing: "literal" sends exactly the keys pressed (no autocorrect); "standard" keeps swipe and suggestions. */
-  directKeyboard: "literal" | "standard";
 };
 
 const DEFAULTS: Settings = {
@@ -27,7 +25,6 @@ const DEFAULTS: Settings = {
   background: true,
   showInHerdr: true,
   inputMode: "direct",
-  directKeyboard: "literal",
 };
 const KEY = "settings.v1";
 

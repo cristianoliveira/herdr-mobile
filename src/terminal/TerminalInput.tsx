@@ -160,6 +160,8 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
             onChangeText={setText}
             placeholder="Message"
             placeholderTextColor={colors.muted}
+            autoCorrect
+            spellCheck
             multiline
             returnKeyType="send"
             submitBehavior="submit"
@@ -172,10 +174,8 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
       ) : (
         <View style={{ height: Math.max(bottom, keyboardHeight ? 0 : space.xs) }}>
           <TextInput
-            key={settings.directKeyboard}
             ref={capture}
             style={styles.capture}
-            keyboardType={settings.directKeyboard === "literal" ? "visible-password" : "default"}
             defaultValue=""
             onChangeText={onCaptureChange}
             onSubmitEditing={onCaptureSubmit}
@@ -184,9 +184,9 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
             onKeyPress={(e) => e.nativeEvent.key === "Backspace" && mirror.current === "" && typeRaw("\x7f")}
             multiline
             autoCapitalize="none"
-            autoCorrect={false}
+            autoCorrect
             autoComplete="off"
-            spellCheck={false}
+            spellCheck
             importantForAutofill="no"
             caretHidden
           />

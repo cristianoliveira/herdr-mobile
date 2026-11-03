@@ -155,7 +155,6 @@ export default function NewSession() {
             onChangeText={setTask}
             placeholder="First task (optional)"
             autoCapitalize="sentences"
-            autoCorrect
             multiline
             textAlignVertical="top"
           />

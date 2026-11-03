@@ -2,13 +2,14 @@ import { forwardRef } from "react";
 import { StyleSheet, TextInput, type TextInputProps } from "react-native";
 import { colors, radius, space } from "./theme";
 
-/** A text input in the app's style; inset when it sits on a surface. No autocorrect unless asked. */
+/** A text input in the app's style; inset when it sits on a surface. Autocorrects; capitalizes only when asked. */
 export const TextField = forwardRef<TextInput, TextInputProps & { inset?: boolean; invalid?: boolean }>(function TextField({ inset, invalid, style, ...props }, ref) {
   return (
     <TextInput
       ref={ref}
       autoCapitalize="none"
-      autoCorrect={false}
+      autoCorrect
+      spellCheck
       placeholderTextColor={colors.muted}
       {...props}
       style={[styles.input, inset && styles.inset, invalid && styles.invalid, style]}

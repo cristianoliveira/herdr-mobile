@@ -10,8 +10,8 @@ An Android and iOS client for [herdr-core](https://github.com/herdrdev/herdr-cor
   list from the title.
 - **Terminal:** live, in color, at phone size or your desktop's size (switch
   in the ⋯ menu). Swipe to scroll its history, or a full-screen program. Tap
-  it and type: keys go straight to the terminal, exactly as pressed (no
-  autocorrect, unless you pick the standard keyboard in Settings). The key bar
+  it and type: keys go straight to the terminal, and the keyboard suggests and
+  corrects words as in any app. The key bar
   sends esc, tab, arrows, ctrl combinations and the clipboard instantly.
   Message mode is for prose to agents: Enter sends it, and hc pastes it and
   presses Enter.

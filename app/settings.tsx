@@ -42,19 +42,6 @@ export default function SettingsScreen() {
         </Row>
       </Section>
 
-      <Section title="Typing">
-        <Row
-          label="Keyboard"
-          hint={
-            s.directKeyboard === "literal"
-              ? "Literal: sends exactly the keys you press. The keyboard can't autocorrect commands."
-              : "Standard: swipe typing and suggestions, but the keyboard may correct words as you type."
-          }
-        >
-          <Segmented value={s.directKeyboard} options={[["literal", "Literal"], ["standard", "Standard"]]} onChange={(v) => void updateSettings({ directKeyboard: v })} />
-        </Row>
-      </Section>
-
       <Section title="Herdr desktop app">
         <Toggle k="showInHerdr" label="Show new sessions there" hint="Sessions you start here get a tab in Herdr, in the space for their folder." s={s} />
       </Section>
