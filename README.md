@@ -1,6 +1,12 @@
+
 # Herdr Mobile
 
-An Android and iOS client for [herdr-core](https://github.com/herdrdev/herdr-core) (`hc`).
+A native Android and iOS client for [herdr-core](https://github.com/herdrdev/herdr-core)
+(`hc`): watch, start, and talk to the coding agents (Pi, Claude Code, and
+others) running on all your machines from your phone. It connects to each
+machine over SSH and runs `herdr-core connect` there, so it needs no server,
+bridge, relay, or plugin on your machines. Tailscale or any other network
+that reaches SSH works.
 
 - **Spaces:** your Herdr desktop app spaces on every machine, each with its
   agents (those that need you first, sub-agents under their parent). Factory
@@ -18,153 +24,60 @@ An Android and iOS client for [herdr-core](https://github.com/herdrdev/herdr-cor
   new-space, or a new Pi in the project's space when it has one.
 - **Manage:** interrupt, copy output, kill.
 
-## How it connects
+## Requirements
 
-The phone reaches each machine the way hc reaches a machine it adds: SSH, then
-`herdr-core connect`, which speaks the hc API over stdin/stdout. Nothing new
-runs on your machines. The phone makes its own Ed25519 key; add its public key
-(Settings → Machines → Copy) to `~/.ssh/authorized_keys` on each machine. The first
-host key a machine presents is trusted and pinned.
+- herdr-core (`hc`) on each machine you want to reach:
 
-The phone connects to every machine you add and merges their lists. A machine
-that another one added with `hc machine add` shows up through it too, as hc's
-`ls` would show it; when the phone also reaches that machine directly, each
-terminal is listed once and the direct line is used.
+  ```sh
+  curl -fsSL https://releases.herdr.dev/core/install.sh | sh
+  ```
 
+- An SSH server on each machine that the phone can reach.
 
-## Develop
+## Install
 
-```sh
-pnpm install          # also builds the terminal page (xterm.js inlined)
-pnpm test             # protocol and multi-machine tests against real scratch hc cores
-pnpm typecheck
-```
+**Android:** there is no public APK download yet. To build one, see
+[Build an APK](docs/releasing.md#build-an-apk).
 
-The tests need `hc` on `PATH`. They run their cores in scratch sessions with
-scratch state directories, so they never see your terminals.
-
-Layout:
-
-- `src/hc/`: the hc protocol client (`connection.ts`) and the merged view of all machines (`fleet.ts`). No React Native imports, so the tests run in Node.
-- `modules/hc-ssh/`: the native SSH module (Kotlin, JSch + BouncyCastle, on Android; Swift, SwiftNIO SSH, on iOS).
-- `plugins/with-ios-scene.js`: adopts the UIScene life cycle, which iOS 27 requires and Expo's template lacks.
-- `src/terminal/`: xterm.js in a WebView, fed by hc's attach stream.
-- `app/`: screens (Expo Router).
-
-## Run on the Pixel 7 (dev client + Metro)
-
-A Pixel 7 is plugged into `mini` over USB. `adb devices` lists it; wake it with
-`adb shell input keyevent KEYCODE_WAKEUP`. `adb`, `scrcpy` and `maestro` come
-from `juanibiapina/dotfiles`.
-
-> **The Pixel only runs the development client.** It loads JavaScript from
-> Metro on `mini`, so TypeScript changes reach it without a build. A preview
-> APK has its JavaScript baked in and ignores Metro, which looks exactly like
-> "stuck on old code". Never install one on the Pixel; test release builds on
-> another phone.
-
-Point the phone at `mini`, start Metro, and open the app on it:
+**iOS:** build the app on a Mac with Xcode and install it on your own iPhone:
 
 ```sh
-adb reverse tcp:8081 tcp:8081   # Metro
-adb reverse tcp:2222 tcp:22     # SSH: the app's machine "mini" is juan@127.0.0.1:2222
-gob add env EXPO_UNSTABLE_HEADLESS=1 pnpm exec expo start
-adb shell am start -a android.intent.action.VIEW \
-  -d "herdrmobile://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081" \
-  dev.juanibiapina.herdrmobile
-```
-
-The tunnels end when the phone is unplugged or the adb server restarts; run
-both `adb reverse` lines again. The SSH tunnel uses 2222 because the phone's
-`adbd` is unprivileged and cannot listen on port 22. The phone's key is in
-`~/.ssh/authorized_keys` as `herdr-mobile@Pixel-7`; reinstalling the app makes
-a new one.
-
-Drive the phone with Maestro, which finds elements by their text, and take a
-screenshot to show a change:
-
-```sh
-maestro --no-ansi hierarchy --compact     # what is on screen
-maestro studio                            # inspect and author taps
-adb exec-out screencap -p > shot.png
-```
-
-Only a native change needs a new dev client (see Release for what counts as
-native). Build it locally and install it over the old one:
-
-```sh
-export NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1
-nix develop ~/workspace/juanibiapina/dotfiles#android --command bash -c \
-  'pnpm exec eas build --platform android --profile development-pixel --local \
-     --non-interactive --output /tmp/herdr-devclient.apk'
-adb install -r /tmp/herdr-devclient.apk
-```
-
-## Release
-
-There are two paths. Pick by what changed.
-
-**Code change (TypeScript, UI, assets): push to `main`.** CI
-(`.github/workflows/ci.yml`) runs typecheck and tests, then publishes an
-update to the EAS `preview` channel, which the APK is built to follow. A push
-that changes only Markdown publishes nothing. Installed apps download the
-update on their next launch, or when they come back to the foreground, and
-offer "Restart" on the Agents screen. CI needs the `EXPO_TOKEN` repository
-secret. When CI is down, publish by hand:
-
-```sh
-pnpm run publish:update --message "what changed"
-```
-
-A push with a native change publishes under its new fingerprint, which only
-an APK built from that code loads.
-
-**Native change: build a new APK.** Native means the Kotlin module in
-`modules/`, a native dependency, or `app.json`. The runtime version is a
-fingerprint of the native inputs, so an update can never load on an APK built
-from different native code. `npx expo-updates runtimeversion:resolve
---platform android` prints the current fingerprint; when it differs from the
-installed APK's (Settings shows which code is running), build a new APK.
-
-Build it locally on `mini` in the Android dev shell from
-`juanibiapina/dotfiles`. Cloud builds (`eas build` without `--local`) use the
-free plan's 15 monthly Android builds; run one only when asked.
-
-```sh
-export NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1
-nix develop ~/workspace/juanibiapina/dotfiles#android --command bash -c \
-  'pnpm exec eas build --platform android --profile preview --local \
-     --non-interactive --output /tmp/herdr-mobile-v0.2.0-preview.apk'
-```
-
-Every build, local or cloud, is signed with the EAS keystore, so a new APK
-installs over any earlier one. Builds signed with the debug key (before
-November 2026) must be uninstalled first.
-
-Publish it to the `Herdr Mobile releases` Drive folder, which keeps exactly one
-APK. Upload and share the new one before deleting the old one:
-
-```sh
-FOLDER=1kpy8XqZVcy9r0JOvXgYKt9bZ-QDF7wDf
-gog drive upload /tmp/herdr-mobile-v0.2.0-preview.apk --parent "$FOLDER"
-gog drive share <newFileId> --to anyone --force
-gog drive ls --parent "$FOLDER"
-gog drive delete <oldFileId> --force
-```
-
-### iOS
-
-For installing on your own iPhone (no App Store):
-
-```sh
+pnpm install
 npx expo prebuild --platform ios
 npx expo run:ios --device --configuration Release
 ```
 
-The first run asks Xcode to sign: open `ios/Herdr.xcworkspace`, pick your team under
-Signing & Capabilities, and trust the developer profile on the phone
-(Settings → General → VPN & Device Management). A free personal team's install
-expires after 7 days; run it again to renew.
+The first run asks Xcode to sign the app. Open `ios/Herdr.xcworkspace`, pick
+your team under Signing & Capabilities, and trust the developer profile on the
+phone (Settings → General → VPN & Device Management). An install signed with a
+free personal team expires after 7 days. Run the last command again to renew
+it.
 
-iOS suspends the app's connections when it is in the background, so there is no
-background watching: machines reconnect when you reopen the app.
+## Connect your machines
+
+The app makes its own Ed25519 SSH key. Copy its public key from
+Settings → Machines → Copy and add it to `~/.ssh/authorized_keys` on each
+machine. Then add each machine in Settings → Machines. The app trusts the
+first host key a machine presents and pins it.
+
+The app connects to every machine you add and merges their lists. A machine
+that another machine added with `hc machine add` shows up through that machine
+too, as `hc ls` would show it. When the app also reaches that machine
+directly, each terminal is listed once and the direct connection is used.
+
+## Updates
+
+On Android, the app downloads updates when it starts or comes back to the
+foreground, then offers Restart on the Spaces screen. Settings shows which
+version is running and can check for updates.
+
+On iOS, build and install the app again to update it.
+
+## Limitations
+
+iOS suspends the app's connections while it is in the background. Machines
+reconnect when you open the app again.
+
+## Contributing
+
+See [docs/development.md](docs/development.md).
