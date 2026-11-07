@@ -1,4 +1,4 @@
-// Inlines xterm.js into one HTML page for the terminal WebView, so the
+// Inlines xterm.js and its fit and image addons into one HTML page for the terminal WebView, so the
 // terminal renders with no network. Runs on postinstall.
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -12,6 +12,7 @@ const read = (spec) => readFileSync(require.resolve(spec), "utf8");
 const xtermJs = read("@xterm/xterm/lib/xterm.js");
 const xtermCss = read("@xterm/xterm/css/xterm.css");
 const fitJs = read("@xterm/addon-fit/lib/addon-fit.js");
+const imageJs = read("@xterm/addon-image/lib/addon-image.js");
 const page = readFileSync(join(root, "src/terminal/page.html"), "utf8");
 // Icons from Nerd Fonts (prompts, file trees), as a fallback after the text font.
 const symbols = readFileSync(join(root, "assets/fonts/SymbolsNerdFontMono.woff2")).toString("base64");
@@ -23,7 +24,8 @@ const safe = (js) => js.replace(/<\/script/gi, "<\\/script");
 const html = page
   .replace("/*XTERM_CSS*/", () => xtermCss + "\n" + symbolsCss)
   .replace("/*XTERM_JS*/", () => safe(xtermJs))
-  .replace("/*FIT_JS*/", () => safe(fitJs));
+  .replace("/*FIT_JS*/", () => safe(fitJs))
+  .replace("/*IMAGE_JS*/", () => safe(imageJs));
 
 writeFileSync(
   join(root, "src/terminal/terminal-html.generated.ts"),

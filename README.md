@@ -11,8 +11,8 @@ that reaches SSH works.
 - **Spaces:** your Herdr desktop app spaces on every machine, each with its
   agents (those that need you first, sub-agents under their parent). Factory
   spaces come last. Tap an agent to open it; swipe right on it to go back.
-- **Terminal:** live, in color, at phone size or your desktop's size (switch
-  in the ⋯ menu). Swipe up or down to scroll its history, or a full-screen program. Tap
+- **Terminal:** live, in color, with the images agents draw, at phone size or
+  your desktop's size (switch in the ⋯ menu). Swipe up or down to scroll its history, or a full-screen program. Tap
   it and type: keys go straight to the terminal, and the keyboard suggests and
   corrects words as in any app. The key bar
   sends esc, tab, arrows, ctrl combinations and the clipboard instantly.

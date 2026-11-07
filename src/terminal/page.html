@@ -16,6 +16,7 @@
 <div id="wrap"><div id="term"></div></div>
 <script>/*XTERM_JS*/</script>
 <script>/*FIT_JS*/</script>
+<script>/*IMAGE_JS*/</script>
 <script>
 (function () {
   var post = function (msg) { window.ReactNativeWebView.postMessage(JSON.stringify(msg)); };
@@ -32,6 +33,23 @@
   var fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   term.open(el);
+  // Images agents draw (Kitty graphics), kept within a phone's memory.
+  term.loadAddon(new ImageAddon.ImageAddon({ storageLimit: 32 }));
+
+  // The encoding the program asked for mouse reports in (xterm keeps it private).
+  var mouseEncoding = "DEFAULT";
+  function trackMouseEncoding(on) {
+    return function (params) {
+      for (var i = 0; i < params.length; i++) {
+        var p = params[i];
+        if (p === 1006) mouseEncoding = on ? "SGR" : "DEFAULT";
+        else if (p === 1016) mouseEncoding = on ? "SGR_PIXELS" : "DEFAULT";
+      }
+      return false;
+    };
+  }
+  term.parser.registerCsiHandler({ prefix: "?", final: "h" }, trackMouseEncoding(true));
+  term.parser.registerCsiHandler({ prefix: "?", final: "l" }, trackMouseEncoding(false));
 
   // The app takes keyboard input in its own field; keep xterm's hidden textarea
   // from grabbing focus and the keyboard on a tap.
@@ -73,9 +91,7 @@
   function wheel(up) {
     var b = up ? 64 : 65;
     var col = Math.ceil(term.cols / 2), row = Math.ceil(term.rows / 2);
-    var mouse = term._core && term._core.coreMouseService;
-    var enc = mouse && mouse.activeEncoding;
-    if (enc === "SGR" || enc === "SGR_PIXELS") return "\x1b[<" + b + ";" + col + ";" + row + "M";
+    if (mouseEncoding !== "DEFAULT") return "\x1b[<" + b + ";" + col + ";" + row + "M";
     return "\x1b[M" + String.fromCharCode(32 + b, 32 + Math.min(col, 223), 32 + Math.min(row, 223));
   }
 
@@ -201,6 +217,7 @@
         });
       } else if (msg.type === "reset") {
         term.reset();
+        mouseEncoding = "DEFAULT";
         checkModes();
       } else if (msg.type === "mode") {
         mode = msg.mode;
