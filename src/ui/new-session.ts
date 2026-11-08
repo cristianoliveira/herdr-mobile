@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { fleet } from "../fleet-store";
 import type { Target } from "../hc/fleet";
 import { newId } from "../herdr-app";
-import { getSettings } from "../settings";
+import { getSettings, useSettings } from "../settings";
+import { scanProjectPaths } from "../projects";
 import type { Space } from "../spaces";
 import { lastFitSize } from "../terminal/fit";
 
@@ -14,8 +15,6 @@ export const AGENTS = [
 export const SPACE_TABS: string[][] = [["nvim-server"], ["deltoids"], ["gob", "tui"]];
 
 const AGENT_PROBE = `for c in ${AGENTS.map((a) => a.cmd).join(" ")}; do command -v "$c" >/dev/null 2>&1 && echo "$c"; done; true`;
-
-const PROJECT_PROBE = 'cd && root="$PWD/workspace" && printf "%s\\n" "$root" && for d in "$root"/*/*; do [ -d "$d" ] && printf "%s\\n" "${d#$root/}"; done; true';
 
 export type Project = { target: Target; owner: string; repo: string; folder: string };
 
@@ -37,28 +36,24 @@ export function useInstalledAgents(target: Target | undefined): string[] | null 
   return found;
 }
 
-export function useProjects(targets: Target[], active: boolean): { projects: Project[]; loading: boolean } {
+export function useProjects(targets: Target[], active: boolean): { projects: Project[]; loading: boolean; errors: string[] } {
+  const { projectPaths, projectLayout } = useSettings();
   const [byCore, setByCore] = useState<Record<string, Project[]>>({});
+  const [errors, setErrors] = useState<string[]>([]);
   const [pending, setPending] = useState(0);
   const ids = targets.map((t) => t.coreId).join(",");
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
     setPending(targets.length);
+    setByCore({});
+    setErrors([]);
     for (const target of targets) {
-      fleet
-        .exec(target, ["sh", "-c", PROJECT_PROBE])
-        .then((out) => {
-          const [root, ...rest] = out.stdout.split("\n").filter(Boolean);
-          return rest.map((p) => {
-            const [owner, repo] = p.split("/");
-            return { target, owner, repo, folder: `${root}/${p}` };
-          });
-        })
-        .catch(() => [] as Project[])
-        .then((list) => {
+      scanProjectPaths(projectPaths, projectLayout, (argv) => fleet.exec(target, argv))
+        .then((result) => {
           if (cancelled) return;
-          setByCore((m) => ({ ...m, [target.coreId]: list }));
+          setErrors((list) => [...list, ...result.errors.map((path) => `${target.label}: could not read ${path}. Check the paths in Settings.`)]);
+          setByCore((m) => ({ ...m, [target.coreId]: result.projects.map((project) => ({ target, ...project })) }));
           setPending((n) => n - 1);
         });
     }
@@ -66,9 +61,9 @@ export function useProjects(targets: Target[], active: boolean): { projects: Pro
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ids, active]);
+  }, [ids, active, projectPaths, projectLayout]);
   const projects = targets.flatMap((t) => byCore[t.coreId] ?? []);
-  return { projects, loading: pending > 0 && projects.length === 0 };
+  return { projects, loading: pending > 0 && projects.length === 0, errors };
 }
 
 async function presize(key: string) {
