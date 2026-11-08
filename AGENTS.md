@@ -5,6 +5,7 @@ Android and iOS client for herdr-core (`hc`), built with Expo.
 ## Mobile-first experience
 
 - Design a native mobile experience, not a desktop interface squeezed onto a phone.
+- Assume one-handed use by default. Put frequent actions within comfortable thumb reach near the bottom, for either hand. Top-header controls must not be the only way to reach primary actions; do not require stretching or changing grip.
 - Keep content primary. Put secondary actions in contextual menus or bottom sheets instead of permanent toolbars and per-row buttons.
 - Prefer familiar gestures: swipe to reveal reversible actions; long-press to enter multi-selection. Show batch controls only during selection.
 - Keep normal taps, vertical scrolling, and platform back gestures predictable. Never make gestures compete for the same motion.
