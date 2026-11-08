@@ -1,38 +1,56 @@
-# Local Funzzy guardrails for herdr-mobile. This file is git-ignored.
-# Validate with `fzz check`; inspect jobs with `fzz list`.
+# Local Funzzy guardrails. Automatic changes check first, then build/install.
+# Validate with `fzz check`; select a phone with ANDROID_SERIAL before starting.
 
 on:
   socket: .watch.sock
+  debounce: 2s
+  change:
+    - "src/**/*"
+    - "app/**/*"
+    - "modules/**/*"
+    - "plugins/**/*"
+    - "assets/**/*"
+    - "test/**/*"
+    - "scripts/**/*"
+    - "Justfile"
+    - "app.json"
+    - "eas.json"
+    - "package.json"
+    - "pnpm-lock.yaml"
+    - "tsconfig.json"
+    - "vitest.config.ts"
+  ignore:
+    - ".git/**"
+    - ".pi/**"
+    - ".tmp/**"
+    - ".expo/**"
+    - "node_modules/**"
+    - "android/**"
+    - "ios/**"
+    - "src/terminal/terminal-html.generated.ts"
+    - "**/__pycache__/**"
 
 execution:
+  # Keep scratch hc socket paths below macOS Unix-socket length limits.
+  env:
+    TMPDIR: /tmp
   concurrency: 2
   output: show-on-failure
 
 jobs:
+  - name: check-and-install
+    run: >-
+      pnpm test &&
+      python3 test/install-recipes.test.py &&
+      pnpm typecheck &&
+      just install-latest
+    timeout: 30m
+
+  # Targeted/manual checks never install.
   - name: tests
-    run: pnpm test
-    change:
-      - "src/**/*.ts"
-      - "src/**/*.tsx"
-      - "test/**/*.ts"
-      - "test/**/*.tsx"
-      - "vitest.config.ts"
-      - "package.json"
-      - "pnpm-lock.yaml"
-    parallel: checks
+    trigger: manual
+    run: pnpm test && python3 test/install-recipes.test.py
 
   - name: typecheck
+    trigger: manual
     run: pnpm typecheck
-    change:
-      - "src/**/*.ts"
-      - "src/**/*.tsx"
-      - "app/**/*.ts"
-      - "app/**/*.tsx"
-      - "modules/**/*.ts"
-      - "modules/**/*.tsx"
-      - "plugins/**/*.ts"
-      - "plugins/**/*.tsx"
-      - "*.json"
-      - "package.json"
-      - "pnpm-lock.yaml"
-    parallel: checks

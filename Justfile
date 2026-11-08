@@ -26,6 +26,26 @@ open-app:
       -d "herdrmobile://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081" \
       dev.juanibiapina.herdrmobile
 
+# Install an existing APK without clearing data: just install path/to/app.apk SERIAL (not for Pixel 7).
+[positional-arguments]
+install apk serial:
+    nix develop --command bash scripts/install-android.sh apk "$2" "$1"
+
+# Build locally and install an ARM64 development client (requires EAS login); optional SERIAL or ANDROID_SERIAL.
+[positional-arguments]
+install-dev serial="":
+    nix develop --command bash scripts/install-android.sh development-pixel "$1"
+
+# Build locally and install standalone preview (requires EAS login); never on Pixel 7.
+[positional-arguments]
+install-preview serial="":
+    nix develop --command bash scripts/install-android.sh preview "$1"
+
+# Build/install on ANDROID_SERIAL or the sole connected phone; Pixel 7 gets development, others preview.
+[positional-arguments]
+install-latest serial="":
+    nix develop --command bash scripts/install-android.sh auto "$1"
+
 # Run the test suite (requires hc on PATH).
 test:
     pnpm test

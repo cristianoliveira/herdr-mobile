@@ -48,6 +48,52 @@ pnpm typecheck
 The tests need `hc` on `PATH`. They run their cores in scratch sessions with
 scratch state directories, so they never see your terminals.
 
+## Install from Just
+
+Run `just devices` to get a phone serial. These targets use the Nix Android
+shell and keep app data with `adb install -r`:
+
+```sh
+just install path/to/app.apk SERIAL  # existing APK; refuses Pixel 7
+just install-dev SERIAL             # local EAS ARM64 development client
+just install-preview SERIAL         # local EAS standalone preview; not Pixel 7
+just install-latest                 # ANDROID_SERIAL, or the only authorized phone
+```
+
+Build targets need EAS authentication (`pnpm exec eas login`). They always
+use `eas build --local`, never cloud builds. Build output is kept in a fresh
+temporary directory. A failed build never proceeds to installation. A
+signature mismatch stops installation; no target uninstalls the app or
+clears its data. Use an APK signed with the installed app's key.
+
+`install-latest` chooses `development-pixel` for Pixel 7 phones and `preview`
+for other phones. Override that choice with `HERDR_INSTALL_PROFILE=preview`
+or `HERDR_INSTALL_PROFILE=development-pixel`; Pixel 7 still rejects preview.
+Development clients need Metro (`just metro`, `just reverse`, `just open-app`).
+
+### Automatic checks and installation
+
+The `.watch.yaml` watcher runs tests, installer safety tests, typecheck, then
+`just install-latest` for app/build-input changes. A failed step prevents
+installation. Generated native files, caches and agent state are excluded
+to prevent rebuild loops.
+
+```sh
+# Use the sole authorized connected phone.
+fzz --log-file .tmp/funzzy/tests.log
+
+# Or select one explicitly before starting/restarting the watcher.
+ANDROID_SERIAL=SERIAL fzz --log-file .tmp/funzzy/tests.log
+```
+
+Selection refuses multiple phones, unauthorized devices and automatic
+emulator selection. An explicit serial takes priority over auto-selection.
+Changing the watcher's environment requires restarting it.
+
+For checks without deployment, use `fzz run tests` and `fzz run typecheck`.
+Run installer/watcher safety tests alone with
+`python3 test/install-recipes.test.py`; these mock builds and device commands.
+
 ## Layout
 
 - `src/hc/`: the hc protocol client (`connection.ts`) and the merged view of all machines (`fleet.ts`). No React Native imports, so the tests run in Node.
