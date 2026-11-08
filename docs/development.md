@@ -2,6 +2,16 @@
 
 ## Set up and check
 
+On an Apple Silicon Mac or x86-64 Linux, enter the repo's Android shell:
+
+```sh
+nix develop
+adb devices -l
+```
+
+The shell provides Node 22, pnpm, Java 17, ADB, and the Android 36 SDK/NDK.
+Entering it accepts the Android SDK license. The first run downloads the toolchain.
+
 ```sh
 pnpm install          # also generates the terminal page and the embedded mod files
 pnpm test             # against real scratch hc cores; builds the mod engine's C core with cc
