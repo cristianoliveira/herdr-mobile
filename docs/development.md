@@ -13,14 +13,31 @@ The shell provides Node 22, pnpm, Java 17, ADB, and the Android 36 SDK/NDK.
 Entering it accepts the Android SDK license. The first run downloads the toolchain.
 Keep at least 20 GB free for the SDKs, Gradle caches, and native build outputs.
 
-Mirror and control a USB-connected Android phone from the computer:
+### Mirror the phone
+
+Connect the phone by USB, enable USB debugging, and accept its authorization
+prompt. Run these commands from the repository root:
 
 ```sh
-scrcpy --serial <device-serial> --window-title "Herdr phone"
+# List connected phones.
+nix develop --command adb devices -l
+
+# Mirror the only USB-connected phone.
+nix develop --command scrcpy --select-usb --window-title "Herdr phone"
+
+# Keep the mirror visible beside your editor, without forwarding phone audio.
+nix develop --command scrcpy --select-usb --always-on-top --no-audio --window-height 900 --window-title "Herdr phone"
+
+# Select this Samsung explicitly when multiple phones are connected.
+nix develop --command scrcpy --serial RFCR81M1TVN --window-title "Herdr phone"
 ```
 
-Use the serial shown by `adb devices -l`. Mirroring does not enable live code
-updates; those require a development client and Metro.
+Replace the serial with the value from `adb devices -l` for another phone.
+Click and type in the mirror to control the phone; close its window to stop
+mirroring. Window resizing scales the full screen without cropping it.
+
+Mirroring does not enable live code updates; those require a development
+client and Metro.
 
 ```sh
 pnpm install          # also builds the terminal page (xterm.js inlined)
