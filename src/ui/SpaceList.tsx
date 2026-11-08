@@ -11,7 +11,7 @@ type Props = {
   loose: Session[];
   showMachine: boolean;
   onSelect: (s: Session) => void;
-  onStart: (space: Space) => void;
+  onStart?: (space: Space) => void;
 };
 
 export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Props) {
@@ -30,7 +30,7 @@ export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Pro
             )}
             {showMachine && <Text style={styles.machine}>{sp.target.label}</Text>}
             <View style={styles.flex} />
-            <Pressable
+            {onStart && <Pressable
               hitSlop={10}
               onPress={() => onStart(sp)}
               accessibilityRole="button"
@@ -38,7 +38,7 @@ export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Pro
               style={({ pressed }) => [styles.add, pressed && styles.addPressed]}
             >
               <Ionicons name="add" size={20} color={colors.text} />
-            </Pressable>
+            </Pressable>}
           </View>
           {sp.agents.map((s) => (
             <AgentRow key={s.key} session={s} sub={s.parentKey !== null && sp.agents.some((x) => x.key === s.parentKey)} onPress={() => onSelect(s)} />

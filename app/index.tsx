@@ -11,6 +11,7 @@ import { Dot } from "../src/ui/Dot";
 import { explainError, linkColor } from "../src/ui/machine-display";
 import { NewSessionSheet } from "../src/ui/NewSessionSheet";
 import { ProjectSheet } from "../src/ui/ProjectSheet";
+import { SpaceSearchSheet } from "../src/ui/SpaceSearchSheet";
 import { SpaceList } from "../src/ui/SpaceList";
 import { colors, radius, space } from "../src/ui/theme";
 import { applyUpdate, useUpdates } from "../src/updates";
@@ -19,6 +20,7 @@ export default function Agents() {
   const { links, sessions, docs } = useFleet();
   const { machines, loaded } = useMachines();
   const [picking, setPicking] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [startIn, setStartIn] = useState<Space | null>(null);
   const insets = useSafeAreaInsets();
   const { isUpdatePending } = useUpdates();
@@ -40,15 +42,16 @@ export default function Agents() {
     <View style={styles.screen}>
       <Stack.Screen
         options={{
-          headerRight: () => (
+          headerRight: () => (searching ? null : (
             <Link href="/settings" asChild>
               <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel="Settings">
                 <Ionicons name="settings-outline" size={24} color={colors.text} />
               </Pressable>
             </Link>
-          ),
+          )),
         }}
       />
+      <View style={styles.contentRoot} accessibilityElementsHidden={searching} importantForAccessibility={searching ? "no-hide-descendants" : "auto"}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => fleet.reconnect()} tintColor={colors.muted} />}
@@ -92,23 +95,37 @@ export default function Agents() {
       </ScrollView>
 
       {connected && (
-        <Pressable
-          onPress={() => setPicking(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Open a project"
-          style={({ pressed }) => [styles.fab, { bottom: insets.bottom + 20 }, pressed && styles.fabPressed]}
-        >
-          <Ionicons name="add" size={32} color={colors.onAccent} />
-        </Pressable>
+        <View style={[styles.bottomActions, { bottom: insets.bottom + 20 }]}>
+          <Pressable
+            onPress={() => setSearching(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Search spaces and agents"
+            style={({ pressed }) => [styles.searchButton, pressed && styles.fabPressed]}
+          >
+            <Ionicons name="search" size={20} color={colors.text} />
+            <Text style={styles.searchButtonText}>Search</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setPicking(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open a project"
+            style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+          >
+            <Ionicons name="add" size={32} color={colors.onAccent} />
+          </Pressable>
+        </View>
       )}
       <NewSessionSheet space={startIn} onClose={() => setStartIn(null)} />
       <ProjectSheet visible={picking} spaces={spaces} onClose={() => setPicking(false)} />
+      </View>
+      <SpaceSearchSheet visible={searching} spaces={spaces} loose={loose} showMachine={targets.length > 1} onClose={() => setSearching(false)} onSelect={(session) => { setSearching(false); open(session); }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  contentRoot: { flex: 1 },
   content: { padding: space.md, paddingTop: space.md },
   banner: { flexDirection: "row", alignItems: "center", gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: space.md, marginBottom: space.md - 2 },
   bannerText: { color: colors.text, fontSize: 14, flex: 1 },
@@ -118,9 +135,10 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontSize: 20, fontWeight: "700" },
   emptyText: { color: colors.muted, fontSize: 14, textAlign: "center" },
   emptyButton: { marginTop: space.sm },
+  bottomActions: { position: "absolute", right: 20, flexDirection: "row", alignItems: "center", gap: space.sm },
+  searchButton: { minWidth: 100, height: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.sm, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: colors.surfaceHigh, borderColor: colors.border, borderWidth: 1 },
+  searchButtonText: { color: colors.text, fontSize: 15, fontWeight: "600" },
   fab: {
-    position: "absolute",
-    right: 20,
     width: 56,
     height: 56,
     borderRadius: radius.full,
