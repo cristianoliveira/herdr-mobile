@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { fleet } from "../fleet-store";
@@ -54,11 +55,23 @@ export function ProjectSheet({ visible, spaces, onClose }: { visible: boolean; s
     <Sheet visible={visible} onClose={close}>
       <TextField style={styles.search} value={query} onChangeText={setQuery} placeholder="Open a project" autoCorrect={false} spellCheck={false} inset />
       {loading && <ActivityIndicator style={styles.loading} color={colors.muted} />}
-      {errors.map((error) => <Text key={error} style={styles.note}>{error}</Text>)}
       {!loading && items.length === 0 && <Text style={styles.note}>{query ? `Nothing matches “${query}”.` : (projectPaths.length ? "No projects in the configured paths." : "Add project paths in Settings to find projects.")}</Text>}
-      <Pressable accessibilityRole="button" onPress={() => { close(); router.push("/settings"); }}>
-        <Text style={styles.note}>Configure project paths →</Text>
-      </Pressable>
+      <View style={styles.actions}>
+        <Pressable accessibilityRole="button" onPress={() => { close(); router.push("/settings"); }}>
+          <Text style={styles.note}>Configure project paths →</Text>
+        </Pressable>
+        {errors.length > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${errors.length} project ${errors.length === 1 ? "error" : "errors"}. Show details.`}
+            onPress={() => Alert.alert("Project errors", errors.join("\n\n"))}
+            style={styles.errors}
+          >
+            <Ionicons name="warning-outline" size={16} color={colors.muted} />
+            <Text style={styles.errorCount}>{errors.length}</Text>
+          </Pressable>
+        )}
+      </View>
       <FlatList
         data={items}
         keyboardShouldPersistTaps="handled"
@@ -96,6 +109,9 @@ export function ProjectSheet({ visible, spaces, onClose }: { visible: boolean; s
 const styles = StyleSheet.create({
   search: { marginHorizontal: gap.xs, marginBottom: gap.sm },
   loading: { marginVertical: gap.xl },
+  actions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  errors: { minWidth: 44, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: gap.xs, paddingHorizontal: gap.sm },
+  errorCount: { color: colors.muted, fontSize: 12 },
   note: { color: colors.muted, fontSize: 14, padding: 14 },
   heading: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, marginHorizontal: 14, marginTop: gap.md, marginBottom: gap.xs },
   row: { flexDirection: "row", alignItems: "center", gap: gap.sm, paddingHorizontal: 14, paddingVertical: 13, borderRadius: radius.md },
