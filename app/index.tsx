@@ -68,6 +68,13 @@ export default function Agents() {
           </Pressable>
         )}
 
+        <Link href="/activity" asChild>
+          <Pressable style={styles.activityLink} accessibilityRole="button" accessibilityLabel="View session activity">
+            <Ionicons name="pulse-outline" size={18} color={colors.accent} />
+            <Text style={styles.activityText}>Activity</Text>
+          </Pressable>
+        </Link>
+
         {down.length > 0 && (
           <Link href="/machines" asChild>
             <Pressable style={styles.banner} accessibilityRole="button">
@@ -110,6 +117,8 @@ export default function Agents() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: space.md, paddingTop: space.md },
+  activityLink: { alignSelf: "flex-end", minWidth: 44, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.xs, paddingHorizontal: space.sm, marginBottom: space.sm },
+  activityText: { color: colors.accent, fontSize: 14, fontWeight: "700" },
   banner: { flexDirection: "row", alignItems: "center", gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: space.md, marginBottom: space.md - 2 },
   bannerText: { color: colors.text, fontSize: 14, flex: 1 },
   update: { backgroundColor: colors.accent + "22", borderColor: colors.accent, borderWidth: 1 },

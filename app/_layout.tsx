@@ -28,6 +28,7 @@ export default function Layout() {
         }}
       >
         <Stack.Screen name="index" options={{ title: "Spaces" }} />
+        <Stack.Screen name="activity" options={{ title: "Activity" }} />
         <Stack.Screen name="machines" options={{ title: "Machines" }} />
         <Stack.Screen name="session/[key]" options={{ title: "" }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
