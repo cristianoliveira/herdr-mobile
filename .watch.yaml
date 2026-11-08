@@ -22,7 +22,9 @@ on:
   ignore:
     - ".git/**"
     - ".pi/**"
+    - "**/.pi/**"
     - ".tmp/**"
+    - "**/.tmp/**"
     - ".expo/**"
     - "node_modules/**"
     - "android/**"
