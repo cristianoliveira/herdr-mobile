@@ -11,6 +11,7 @@ adb devices -l
 
 The shell provides Node 22, pnpm, Java 17, ADB, and the Android 36 SDK/NDK.
 Entering it accepts the Android SDK license. The first run downloads the toolchain.
+Keep at least 20 GB free for the SDKs, Gradle caches, and native build outputs.
 
 ```sh
 pnpm install          # also builds the terminal page (xterm.js inlined)
@@ -48,7 +49,7 @@ login, run inside `nix develop`:
 ```sh
 pnpm install --frozen-lockfile
 pnpm exec expo prebuild --platform android --no-install
-(cd android && ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=2 -x lintVitalAnalyzeRelease)
+(cd android && ./gradlew --no-daemon :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --max-workers=2 -x lintVitalAnalyzeRelease)
 adb -s <device-serial> install -r android/app/build/outputs/apk/release/app-release.apk
 adb -s <device-serial> shell monkey -p dev.juanibiapina.herdrmobile 1
 ```

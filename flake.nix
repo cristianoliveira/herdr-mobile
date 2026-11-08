@@ -18,9 +18,10 @@
           };
           android = pkgs.androidenv.composeAndroidPackages {
             platformVersions = [ "36" ];
-            buildToolsVersions = [ "36.0.0" ];
+            buildToolsVersions = [ "35.0.0" "36.0.0" ];
             includeNDK = true;
-            ndkVersions = [ "27.1.12297006" ];
+            # Expo Updates uses AGP's default NDK; React Native pins a newer one.
+            ndkVersions = [ "27.0.12077973" "27.1.12297006" ];
             includeCmake = true;
             cmakeVersions = [ "3.22.1" ];
           };
