@@ -1,0 +1,38 @@
+# Local Funzzy guardrails for herdr-mobile. This file is git-ignored.
+# Validate with `fzz check`; inspect jobs with `fzz list`.
+
+on:
+  socket: .watch.sock
+
+execution:
+  concurrency: 2
+  output: show-on-failure
+
+jobs:
+  - name: tests
+    run: pnpm test
+    change:
+      - "src/**/*.ts"
+      - "src/**/*.tsx"
+      - "test/**/*.ts"
+      - "test/**/*.tsx"
+      - "vitest.config.ts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+    parallel: checks
+
+  - name: typecheck
+    run: pnpm typecheck
+    change:
+      - "src/**/*.ts"
+      - "src/**/*.tsx"
+      - "app/**/*.ts"
+      - "app/**/*.tsx"
+      - "modules/**/*.ts"
+      - "modules/**/*.tsx"
+      - "plugins/**/*.ts"
+      - "plugins/**/*.tsx"
+      - "*.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+    parallel: checks
