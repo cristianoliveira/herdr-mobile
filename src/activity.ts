@@ -7,8 +7,52 @@ export type ActivityItem = {
   kind: ActivityKind;
   changedAt: number | null;
   timeSource: "finished" | "status" | "started";
+  fingerprint: string;
   space?: Space;
 };
+
+export type ActivityFilters = { machine: string | null; space: string | null };
+export const EMPTY_ACTIVITY_FILTERS: ActivityFilters = { machine: null, space: null };
+
+export function activityFingerprint(session: Session): string {
+  const terminal = session.terminal;
+  const eventTime = terminal.state === "finished"
+    ? terminal.finished_ms ?? terminal.status_ms ?? terminal.created_ms
+    : terminal.status_ms ?? terminal.created_ms;
+  const semanticState = terminal.state === "finished" ? `finished:${terminal.exit_code ?? "unknown"}` : terminal.status?.state ?? "unknown";
+  return JSON.stringify([session.key, semanticState, eventTime]);
+}
+
+export function filterActivity(items: ActivityItem[], filters: ActivityFilters): ActivityItem[] {
+  return items.filter(({ session, space }) =>
+    (!filters.machine || coreOf(session.key) === filters.machine)
+    && (!filters.space || (filters.space === "__none__" ? !space : space?.key === filters.space)));
+}
+
+export function visibleActivity(items: ActivityItem[], dismissed: Record<string, string>, filters: ActivityFilters): ActivityItem[] {
+  return filterActivity(items, filters).filter((item) => dismissed[item.session.key] !== item.fingerprint);
+}
+
+export function activitySelectionId(item: ActivityItem): string {
+  return JSON.stringify([item.session.key, item.fingerprint]);
+}
+
+export function pruneActivitySelection(selected: string[], items: ActivityItem[], dismissed: Record<string, string>, filters: ActivityFilters): string[] {
+  const visibleIds = new Set(visibleActivity(items, dismissed, filters).map(activitySelectionId));
+  return selected.filter((id) => visibleIds.has(id));
+}
+
+export function activityFilterOptions(items: ActivityItem[]) {
+  const machines = [...new Map(items.map(({ session }) => [coreOf(session.key), session.machine])).entries()]
+    .map(([key, label]) => ({ key, label })).sort((a, b) => a.label.localeCompare(b.label) || a.key.localeCompare(b.key));
+  const spaces = [...new Map(items.filter(({ space }) => space).map(({ space }) => [space!.key, { key: space!.key, label: space!.name }])).values()].sort((a, b) => a.label.localeCompare(b.label));
+  if (items.some(({ space }) => !space)) spaces.push({ key: "__none__", label: "Not in a space" });
+  return { machines, spaces };
+}
+
+export function dismissItems(dismissed: Record<string, string>, items: ActivityItem[]): Record<string, string> {
+  return { ...dismissed, ...Object.fromEntries(items.map((item) => [item.session.key, item.fingerprint])) };
+}
 
 export function activityKind(session: Session): ActivityKind {
   const { state, exit_code } = session.terminal;
@@ -42,7 +86,7 @@ export function activityItems(sessions: Session[], spaces: Space[]): ActivityIte
       : timeSource === "status" ? terminal.status_ms! : terminal.created_ms ?? null;
     const labeledSpace = terminal.labels?.["herdr.space"];
     const space = spaceBySession.get(session.key) ?? (labeledSpace ? spaceByKey.get(`${coreOf(session.key)}:${labeledSpace}`) : undefined);
-    return { session, kind: activityKind(session), changedAt, timeSource, space };
+    return { session, kind: activityKind(session), changedAt, timeSource, fingerprint: activityFingerprint(session), space };
   }).sort((a, b) => priority(a.kind) - priority(b.kind)
     || (b.changedAt ?? 0) - (a.changedAt ?? 0)
     || a.session.key.localeCompare(b.session.key));

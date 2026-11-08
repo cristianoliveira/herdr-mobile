@@ -14,7 +14,10 @@ that reaches SSH works.
 - **Activity:** a separate view from Spaces. Waiting agents and errors come
   first, then completed work, then other sessions. Each group shows newest
   status changes first, with space and machine context. Tap a session to open
-  it. This is status recency, not recently opened history or raw terminal output.
+  it. Filter by machine and space. Dismiss one item, selected items, or all
+  items in the current scope; this only hides activity on this phone and does
+  not stop sessions. A new status change brings a dismissed item back.
+  This is status recency, not recently opened history or raw terminal output.
 - **Terminal:** live, in color, with the images agents draw, at phone size or
   your desktop's size (switch in the ⋯ menu). Swipe up or down to scroll its history, or a full-screen program. Tap
   it and type: keys go straight to the terminal, and the keyboard suggests and

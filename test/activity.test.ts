@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Session } from "../src/hc/fleet";
-import { activityItems, activityKind } from "../src/activity";
+import { activityItems, activityKind, activitySelectionId, dismissItems, filterActivity, pruneActivitySelection, visibleActivity } from "../src/activity";
 import type { Space } from "../src/spaces";
 
 function session(key: string, state: string, statusMs?: number, terminalState = "live", exitCode?: number, labels: Record<string, string> = {}): Session {
@@ -53,6 +53,51 @@ describe("activity", () => {
     expect(activityItems([live], [])[0].changedAt).toBe(100);
     expect(activityItems([live], [])[0].timeSource).toBe("started");
     expect(activityItems([], [])).toEqual([]);
+  });
+
+  test("composes machine/space filters and confines dismissal to the filtered scope", () => {
+    const member = session("core:member", "working", 300);
+    const elsewhere = session("other:outside", "idle", 200);
+    elsewhere.machine = "other-machine";
+    const space = { key: "core:space", target: {} as Space["target"], id: "space", name: "Workspace", folder: "/work", factory: false, agents: [member] } satisfies Space;
+    const [inSpace, outside] = activityItems([member, elsewhere], [space]);
+    const filtered = filterActivity([inSpace, outside], { machine: "core", space: space.key });
+    expect(filtered.map(({ session: item }) => item.key)).toEqual([member.key]);
+    const hidden = dismissItems({}, filtered);
+    expect(visibleActivity([inSpace, outside], hidden, { machine: "core", space: space.key })).toEqual([]);
+    expect(visibleActivity([inSpace, outside], hidden, { machine: null, space: null })).toHaveLength(1);
+    expect(filterActivity([inSpace, outside], { machine: null, space: "__none__" }).map(({ session: item }) => item.key)).toEqual([elsewhere.key]);
+    const newEvent = activityItems([session(member.key, "error", 500)], [space]);
+    expect(visibleActivity(newEvent, hidden, { machine: null, space: null })).toHaveLength(1);
+  });
+
+  test("uses stable core IDs for machine filtering and prunes stale selection revisions", () => {
+    const one = session("core-a:session", "working", 300);
+    one.machine = "Shared name";
+    const two = session("core-b:session", "working", 300);
+    two.machine = "Shared name";
+    const oldItems = activityItems([one], []);
+    const revisedItems = activityItems([session(one.key, "error", 400)], []);
+    expect(filterActivity([...oldItems, ...activityItems([two], [])], { machine: "core-a", space: null })).toHaveLength(1);
+    expect(pruneActivitySelection([activitySelectionId(oldItems[0])], revisedItems, {}, { machine: null, space: null })).toEqual([]);
+  });
+
+  test("dismissal hides the exact revision, and a newer event in the same state resurfaces", () => {
+    const before = activityItems([session("core:agent", "working", 300)], []);
+    const dismissed = dismissItems({}, before);
+    const unchanged = activityItems([session("core:agent", "working", 300)], []);
+    const newer = activityItems([session("core:agent", "working", 301)], []);
+    const filters = { machine: null, space: null };
+
+    expect(visibleActivity(unchanged, dismissed, filters)).toEqual([]);
+    expect(visibleActivity(newer, dismissed, filters).map((item) => item.session.key)).toEqual(["core:agent"]);
+  });
+
+  test("an unavailable scope stays empty rather than exposing all activity", () => {
+    const items = activityItems([session("core:agent", "working", 300)], []);
+
+    expect(filterActivity(items, { machine: "missing-core", space: null })).toEqual([]);
+    expect(filterActivity(items, { machine: null, space: "missing-space" })).toEqual([]);
   });
 
   test("handles missing change timestamps and duplicate keys deterministically", () => {
