@@ -41,9 +41,16 @@ Only a native change needs a new dev client (see
 locally and install it over the old one:
 
 ```sh
-export NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1
-nix develop ~/workspace/juanibiapina/dotfiles#android --command bash -c \
-  'pnpm exec eas build --platform android --profile development-pixel --local \
-     --non-interactive --output /tmp/herdr-devclient.apk'
-adb install -r /tmp/herdr-devclient.apk
+just install-dev SERIAL  # replace SERIAL with the Pixel's adb serial
+```
+
+This uses Expo prebuild and Gradle in the repository's Nix Android shell.
+No Expo login is required. To build and install directly:
+
+```sh
+nix develop --command bash -c '
+  pnpm exec expo prebuild --platform android --no-install &&
+  (cd android && ./gradlew --no-daemon :app:assembleDebug -PreactNativeArchitectures=arm64-v8a --max-workers=2) &&
+  adb -s SERIAL install -r android/app/build/outputs/apk/debug/app-debug.apk
+'
 ```
