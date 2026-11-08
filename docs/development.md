@@ -55,16 +55,18 @@ shell and keep app data with `adb install -r`:
 
 ```sh
 just install path/to/app.apk SERIAL  # existing APK; refuses Pixel 7
-just install-dev SERIAL             # local EAS ARM64 development client
-just install-preview SERIAL         # local EAS standalone preview; not Pixel 7
+just install-dev SERIAL             # local Gradle ARM64 development client
+just install-preview SERIAL         # local Gradle standalone test build; not Pixel 7
 just install-latest                 # ANDROID_SERIAL, or the only authorized phone
 ```
 
-Build targets need EAS authentication (`pnpm exec eas login`). They always
-use `eas build --local`, never cloud builds. Build output is kept in a fresh
-temporary directory. A failed build never proceeds to installation. A
-signature mismatch stops installation; no target uninstalls the app or
-clears its data. Use an APK signed with the installed app's key.
+Build targets use Expo prebuild and local Gradle in the Nix Android shell.
+No Expo login or cloud service is needed. Outputs remain under
+`android/app/build/outputs/apk/`. These builds use the local debug signing
+key, including standalone test builds; they cannot replace an EAS-signed app.
+A failed build never proceeds to installation. A signature mismatch stops
+installation; no target uninstalls the app or clears its data. Use an APK
+signed with the installed app's key.
 
 `install-latest` chooses `development-pixel` for Pixel 7 phones and `preview`
 for other phones. Override that choice with `HERDR_INSTALL_PROFILE=preview`

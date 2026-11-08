@@ -21,6 +21,9 @@ with open(os.environ['INSTALL_TEST_LOG'], 'a') as log:
     log.write(json.dumps([name, *args]) + '\\n')
 if name == 'nix':
     assert args[:2] == ['develop', '--command'], args
+    if args[2] == 'bash':
+        args[3] = str(pathlib.Path(args[3]).resolve())
+    os.chdir(os.environ['INSTALL_TEST_ROOT'])
     os.execvp(args[2], args[2:])
 if name == 'adb':
     if os.environ.get('DEVICE_FAILURE'):
@@ -39,11 +42,16 @@ if name in ('just', 'python3'):
 if name == 'pnpm':
     if args in (['test'], ['typecheck']):
         sys.exit(1 if os.environ.get('CHECK_FAILURE') == args[0] else 0)
+    assert args == ['exec', 'expo', 'prebuild', '--platform', 'android', '--no-install'], args
+    if os.environ.get('PREBUILD_FAILURE'):
+        sys.exit(1)
+if name == 'gradlew':
     if os.environ.get('BUILD_FAILURE'):
         sys.exit(1)
-    assert args[:3] == ['exec', 'eas', 'build'], args
-    assert '--local' in args, args
-    pathlib.Path(args[args.index('--output') + 1]).write_text('fake apk')
+    variant = 'debug' if ':app:assembleDebug' in args else 'release'
+    apk = pathlib.Path(f'app/build/outputs/apk/{variant}/app-{variant}.apk')
+    apk.parent.mkdir(parents=True, exist_ok=True)
+    apk.write_text('fake apk')
 """
 
 
@@ -55,6 +63,10 @@ class InstallRecipes(unittest.TestCase):
         self.log = self.root / "commands.jsonl"
         self.apk = self.root / "phone's app $(touch injected).apk"
         self.apk.write_text("fake apk")
+        (self.root / "android").mkdir()
+        gradlew = self.root / "android" / "gradlew"
+        gradlew.write_text(STUB)
+        gradlew.chmod(0o755)
         for tool in ("nix", "adb", "pnpm"):
             path = self.root / tool
             path.write_text(STUB)
@@ -64,10 +76,10 @@ class InstallRecipes(unittest.TestCase):
         result = subprocess.run(
             ["just", "--justfile", str(ROOT / "Justfile"), *arguments],
             env={**os.environ, "PATH": f"{self.root}:{os.environ['PATH']}",
-                 "INSTALL_TEST_LOG": str(self.log), "TMPDIR": str(self.root),
+                 "INSTALL_TEST_LOG": str(self.log), "INSTALL_TEST_ROOT": str(self.root), "TMPDIR": str(self.root),
                  "ANDROID_SERIAL": "", "HERDR_INSTALL_PROFILE": "", "DEVICE_MODEL": "SM-G781B",
-                 "DEVICE_FAILURE": "", "BUILD_FAILURE": "", "INSTALL_FAILURE": "0", **environment},
-            capture_output=True, text=True, timeout=10,
+                 "DEVICE_FAILURE": "", "PREBUILD_FAILURE": "", "BUILD_FAILURE": "", "INSTALL_FAILURE": "0", **environment},
+            cwd=self.root, capture_output=True, text=True, timeout=10,
         )
         self.commands = [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
         return result
@@ -110,7 +122,7 @@ class InstallRecipes(unittest.TestCase):
         return [command for command in self.commands if command[0] == "adb" and "install" in command]
 
     def builds(self):
-        return [command for command in self.commands if command[0] == "pnpm"]
+        return [command for command in self.commands if command[0] == "gradlew"]
 
     def test_existing_apk_preserves_arguments_and_uses_selected_device(self):
         result = self.run_recipe("install", str(self.apk), "phone's serial")
@@ -146,18 +158,18 @@ class InstallRecipes(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         build = self.builds()[0]
-        self.assertEqual(build[build.index("--profile") + 1], "development-pixel")
-        self.assertIn("--local", build)
+        self.assertIn(":app:assembleDebug", build)
+        self.assertIn("-PreactNativeArchitectures=arm64-v8a", build)
         self.assertEqual(self.installs()[0][1:5], ["-s", "pixel", "install", "-r"])
-        self.assertEqual(self.installs()[0][5], build[build.index("--output") + 1])
+        self.assertEqual(self.installs()[0][5], "android/app/build/outputs/apk/debug/app-debug.apk")
 
     def test_preview_is_built_locally_for_samsung(self):
         result = self.run_recipe("install-preview", "samsung")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         build = self.builds()[0]
-        self.assertEqual(build[build.index("--profile") + 1], "preview")
-        self.assertIn("--local", build)
+        self.assertIn(":app:assembleRelease", build)
+        self.assertIn("-x", build)
         self.assertEqual(self.installs()[0][1:5], ["-s", "samsung", "install", "-r"])
 
     def test_latest_uses_configured_serial_without_auto_selection(self):
@@ -173,14 +185,14 @@ class InstallRecipes(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.installs()[0][1:3], ["-s", "samsung"])
         build = self.builds()[0]
-        self.assertEqual(build[build.index("--profile") + 1], "preview")
+        self.assertIn(":app:assembleRelease", build)
 
     def test_latest_selects_development_client_for_pixel(self):
         result = self.run_recipe("install-latest", ANDROID_SERIAL="", DEVICE_MODEL="Pixel 7")
 
         self.assertEqual(result.returncode, 0, result.stderr)
         build = self.builds()[0]
-        self.assertEqual(build[build.index("--profile") + 1], "development-pixel")
+        self.assertIn(":app:assembleDebug", build)
 
     def test_multiple_phones_require_explicit_selection(self):
         result = self.run_recipe("install-latest", ANDROID_SERIAL="", DEVICE_LIST="one\tdevice\ntwo\tdevice\n")
@@ -215,6 +227,13 @@ class InstallRecipes(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(self.builds()), 1)
+        self.assertEqual(self.installs(), [])
+
+    def test_failed_prebuild_does_not_build_or_install(self):
+        result = self.run_recipe("install-dev", "pixel", DEVICE_MODEL="Pixel 7", PREBUILD_FAILURE="1")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.builds(), [])
         self.assertEqual(self.installs(), [])
 
     def test_unavailable_device_stops_before_build(self):

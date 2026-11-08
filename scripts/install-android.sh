@@ -57,10 +57,19 @@ if [[ "$model" == "Pixel 7"* && "$mode" != development-pixel ]]; then
 fi
 
 if [[ "$mode" != apk ]]; then
-  output=$(mktemp -d "${TMPDIR:-/tmp}/herdr-mobile-${mode}.XXXXXX")
-  apk="$output/app.apk"
-  printf 'Building %s locally for %s (%s).\n' "$mode" "$model" "$serial"
-  pnpm exec eas build --platform android --profile "$mode" --local --non-interactive --output "$apk"
+  printf 'Building %s locally for %s (%s), without an Expo login.\n' "$mode" "$model" "$serial"
+  pnpm exec expo prebuild --platform android --no-install
+  variant=debug
+  task=:app:assembleDebug
+  if [[ "$mode" == preview ]]; then
+    variant=release
+    task=:app:assembleRelease
+  fi
+  (
+    cd android
+    ./gradlew --no-daemon --console=plain "$task" -PreactNativeArchitectures=arm64-v8a --max-workers=2 -x lintVitalAnalyzeRelease < /dev/null
+  )
+  apk="android/app/build/outputs/apk/$variant/app-$variant.apk"
 fi
 
 printf 'Installing %s on %s (%s), keeping app data.\n' "$apk" "$model" "$serial"
