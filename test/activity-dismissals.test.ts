@@ -88,6 +88,56 @@ test("rapid dismissals merge instead of overwriting unrelated entries", async ()
   expect(await dismissals.loadActivityDismissals()).toEqual({ "core:first": first[0].fingerprint, "other:second": second[0].fingerprint });
 });
 
+test("Undo removes only dismissed markers and preserves unrelated entries", async () => {
+  const dismissals = await import("../src/activity-dismissals");
+  await dismissals.loadActivityDismissals();
+  const target = items("core:target");
+  const unrelated = items("other:session");
+  await dismissals.dismissActivityItems([...target, ...unrelated]);
+
+  await dismissals.undoActivityItems(target);
+
+  expect(await dismissals.loadActivityDismissals()).toEqual({ "other:session": unrelated[0].fingerprint });
+});
+
+test("batch Undo restores all exact dismissed revisions", async () => {
+  const dismissals = await import("../src/activity-dismissals");
+  await dismissals.loadActivityDismissals();
+  const batch = [items("core:first")[0], items("core:second")[0]];
+  await dismissals.dismissActivityItems(batch);
+  expect(Object.keys(await dismissals.loadActivityDismissals())).toHaveLength(2);
+
+  await dismissals.undoActivityItems(batch);
+
+  expect(await dismissals.loadActivityDismissals()).toEqual({});
+});
+
+test("Undo restores only the exact dismissed revision and preserves newer markers", async () => {
+  const dismissals = await import("../src/activity-dismissals");
+  await dismissals.loadActivityDismissals();
+  const firstRevision = items("core:session", 100);
+  const newerRevision = items("core:session", 200);
+  await dismissals.dismissActivityItems(firstRevision);
+  await dismissals.dismissActivityItems(newerRevision);
+
+  await dismissals.undoActivityItems(firstRevision);
+
+  expect(await dismissals.loadActivityDismissals()).toEqual({ "core:session": newerRevision[0].fingerprint });
+});
+
+test("failed Undo writes leave persisted dismissals unchanged", async () => {
+  const dismissals = await import("../src/activity-dismissals");
+  await dismissals.loadActivityDismissals();
+  const hidden = items("core:session");
+  await dismissals.dismissActivityItems(hidden);
+  storage.failWrite = true;
+
+  await expect(dismissals.undoActivityItems(hidden)).rejects.toThrow("write failed");
+
+  expect(await dismissals.loadActivityDismissals()).toEqual({ "core:session": hidden[0].fingerprint });
+  expect(JSON.parse(storage.value!)).toEqual({ "core:session": hidden[0].fingerprint });
+});
+
 test("dismissal loads existing markers before writing when called before page load", async () => {
   storage.value = JSON.stringify({ "core:old": "saved" });
   const dismissals = await import("../src/activity-dismissals");

@@ -1,6 +1,14 @@
 import type { Session } from "./hc/fleet";
 import { coreOf, type Space } from "./spaces";
 
+export function shouldCaptureDismissSwipe(dx: number, dy: number, startX = 25): boolean {
+  return startX > 24 && dx < -12 && Math.abs(dx) > Math.abs(dy) * 1.5;
+}
+
+export function shouldRevealDismiss(dx: number, dy: number, threshold = 64, startX = 25): boolean {
+  return shouldCaptureDismissSwipe(dx, dy, startX) && dx <= -threshold;
+}
+
 export type ActivityKind = "waiting" | "error" | "completed" | "working" | "idle" | "unknown";
 export type ActivityItem = {
   session: Session;

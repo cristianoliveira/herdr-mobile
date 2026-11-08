@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Session } from "../src/hc/fleet";
-import { activityItems, activityKind, activitySelectionId, dismissItems, filterActivity, pruneActivitySelection, visibleActivity } from "../src/activity";
+import { activityItems, activityKind, activitySelectionId, dismissItems, filterActivity, pruneActivitySelection, shouldCaptureDismissSwipe, shouldRevealDismiss, visibleActivity } from "../src/activity";
 import type { Space } from "../src/spaces";
 
 function session(key: string, state: string, statusMs?: number, terminalState = "live", exitCode?: number, labels: Record<string, string> = {}): Session {
@@ -15,6 +15,15 @@ function session(key: string, state: string, statusMs?: number, terminalState = 
 }
 
 describe("activity", () => {
+  test("captures deliberate left swipes only and reveals dismissal past the threshold", () => {
+    expect(shouldCaptureDismissSwipe(-20, 2)).toBe(true);
+    expect(shouldCaptureDismissSwipe(40, 1)).toBe(false);
+    expect(shouldCaptureDismissSwipe(-60, 70)).toBe(false);
+    expect(shouldCaptureDismissSwipe(-80, 0, 12)).toBe(false);
+    expect(shouldRevealDismiss(-40, 0)).toBe(false);
+    expect(shouldRevealDismiss(-70, 2)).toBe(true);
+    expect(shouldRevealDismiss(-100, 2, 64, 12)).toBe(false);
+  });
   test("classifies attention, completion, idle, and unknown states explicitly", () => {
     expect(activityKind(session("wait", "blocked"))).toBe("waiting");
     expect(activityKind(session("error", "error"))).toBe("error");
