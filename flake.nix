@@ -33,6 +33,7 @@
               pkgs.pnpm_10
               pkgs.jdk17
               pkgs.android-tools
+              pkgs.scrcpy
               android.androidsdk
             ];
 

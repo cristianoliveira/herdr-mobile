@@ -13,6 +13,15 @@ The shell provides Node 22, pnpm, Java 17, ADB, and the Android 36 SDK/NDK.
 Entering it accepts the Android SDK license. The first run downloads the toolchain.
 Keep at least 20 GB free for the SDKs, Gradle caches, and native build outputs.
 
+Mirror and control a USB-connected Android phone from the computer:
+
+```sh
+scrcpy --serial <device-serial> --window-title "Herdr phone"
+```
+
+Use the serial shown by `adb devices -l`. Mirroring does not enable live code
+updates; those require a development client and Metro.
+
 ```sh
 pnpm install          # also builds the terminal page (xterm.js inlined)
 pnpm test             # protocol and multi-machine tests against real scratch hc cores
