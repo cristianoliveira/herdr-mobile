@@ -11,6 +11,9 @@ that reaches SSH works.
 - **Spaces:** your Herdr desktop app spaces on every machine, each with its
   agents (those that need you first, sub-agents under their parent). Factory
   spaces come last. Tap an agent to open it; swipe right on it to go back.
+- **Search:** tap Search beside the bottom + button in Spaces. Type a space,
+  agent, or status message; choose a machine or space scope from the search
+  sheet. Results keep their space context, and tapping an agent opens it.
 - **Activity:** a separate view from Spaces. Waiting agents and errors come
   first, then completed work, then other sessions. Each group shows newest
   status changes first, with space and machine context. Tap a session to open
