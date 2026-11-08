@@ -28,10 +28,26 @@ export function loadActivityDismissals(): Promise<Record<string, string>> {
 }
 
 export function dismissActivityItems(items: ActivityItem[]): Promise<Record<string, string>> {
-  const patch = Object.fromEntries(items.map((item) => [item.session.key, item.fingerprint]));
+  return updateDismissals((current) => ({
+    ...current,
+    ...Object.fromEntries(items.map((item) => [item.session.key, item.fingerprint])),
+  }));
+}
+
+export function undoActivityItems(items: ActivityItem[]): Promise<Record<string, string>> {
+  return updateDismissals((current) => {
+    const next = { ...current };
+    for (const item of items) {
+      if (next[item.session.key] === item.fingerprint) delete next[item.session.key];
+    }
+    return next;
+  });
+}
+
+function updateDismissals(update: (current: Record<string, string>) => Record<string, string>): Promise<Record<string, string>> {
   const write = writes.then(async () => {
     await loadActivityDismissals();
-    const next = { ...dismissed, ...patch };
+    const next = update(dismissed);
     await AsyncStorage.setItem(KEY, JSON.stringify(next));
     dismissed = next;
     return next;
