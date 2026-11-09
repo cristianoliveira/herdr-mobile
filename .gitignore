@@ -4,6 +4,11 @@ node_modules/
 /ios/
 dist/
 *.apk
+/release/
+*.jks
+*.keystore
+*.p12
+*.pfx
 src/terminal/terminal-html.generated.ts
 modules/*/android/build/
 modules/*/android/.cxx/

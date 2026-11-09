@@ -1,0 +1,19 @@
+// Override only packaged version metadata. Do not change app.json or its OTA fingerprint.
+def releaseTag = System.getenv('RELEASE_TAG')
+def releaseCode = System.getenv('RELEASE_VERSION_CODE')
+if (!(releaseTag ==~ /v\d+\.\d+\.\d+-alpha\.[1-9]\d*/) || !(releaseCode ==~ /[1-9]\d*/)) {
+    throw new GradleException('Set RELEASE_TAG (vX.Y.Z-alpha.N) and RELEASE_VERSION_CODE before building.')
+}
+def code = Long.parseLong(releaseCode)
+if (code > 2100000000) {
+    throw new GradleException('RELEASE_VERSION_CODE exceeds the Android limit.')
+}
+
+gradle.beforeProject { project ->
+    project.plugins.withId('com.android.application') {
+        project.extensions.getByName('androidComponents').finalizeDsl { android ->
+            android.defaultConfig.versionName = releaseTag.substring(1)
+            android.defaultConfig.versionCode = (int) code
+        }
+    }
+}
