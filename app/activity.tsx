@@ -9,10 +9,12 @@ import { fleet, useFleet } from "../src/fleet-store";
 import type { Session } from "../src/hc/fleet";
 import { spaces as spacesOf } from "../src/spaces";
 import { ActivityList } from "../src/ui/ActivityList";
+import { ForwardPanelAction, useForwardPanel } from "../src/ui/PanelForward";
 import { colors, space } from "../src/ui/theme";
 
 export default function Activity() {
   const { sessions, docs } = useFleet();
+  const forwardPanel = useForwardPanel(sessions);
   const insets = useSafeAreaInsets();
   const [, tick] = useState(0);
   const [dismissed, setDismissed] = useState<Record<string, string>>({});
@@ -112,6 +114,7 @@ export default function Activity() {
       </View>}
       <ActivityList
         bottomInset={insets.bottom + space.xs}
+        menuActions={forwardPanel && <ForwardPanelAction session={forwardPanel} onClose={() => setPanel(null)} />}
         panel={panel}
         onPanelChange={setPanel}
         onUndo={() => void undo()}

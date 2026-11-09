@@ -121,6 +121,18 @@ Choose **Direct folders** for `<path>/<repo>`, or **Owner / repo** for
 layout persist across app restarts. The default remains `~/workspace` with
 owner/repo grouping. Directories are not created automatically.
 
+## Back and Forward between panels and lists
+
+Swipe right in a panel to return to its list. On Spaces, swipe left across
+list content to reopen the last visited panel. Short drags, vertical scrolling
+and swipes starting at the screen edges do not trigger Forward.
+
+For an accessible alternative, open **Spaces options → Forward to last panel**.
+Settings is also in Spaces options. Activity offers Forward in **Activity
+options**; its row swipes still reveal dismissal, not navigation. No permanent
+Forward button is shown. Forward is available only while the remembered
+panel exists; this navigation memory resets when the app restarts.
+
 ## JavaScript and native changes
 
 A change is native when it touches `modules/`, `plugins/`, `app.json`, or a

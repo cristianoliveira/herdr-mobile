@@ -1,5 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Alert, Animated, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { ActivityFilters, ActivityItem } from "../activity";
 import { activityFilterOptions, activitySelectionId, filterActivity, pruneActivitySelection, shouldCaptureDismissSwipe, shouldRevealDismiss, visibleActivity } from "../activity";
@@ -12,7 +12,7 @@ const labels = { waiting: "Waiting for input", error: "Error", completed: "Compl
 type Panel = "filters" | "menu" | null;
 type FilterPage = "root" | "machine" | "space";
 
-export function ActivityList({ items, dismissed, filters, onFiltersChange, onDismiss, onDismissMany, onUndo, undoItems, dismissEnabled, panel, onPanelChange, showMachine, bottomInset, onSelect }: {
+export function ActivityList({ items, dismissed, filters, onFiltersChange, onDismiss, onDismissMany, onUndo, undoItems, dismissEnabled, panel, onPanelChange, showMachine, bottomInset, onSelect, menuActions }: {
   items: ActivityItem[];
   dismissed: Record<string, string>;
   filters: ActivityFilters;
@@ -26,6 +26,7 @@ export function ActivityList({ items, dismissed, filters, onFiltersChange, onDis
   onPanelChange: (panel: Panel) => void;
   showMachine: boolean;
   bottomInset: number;
+  menuActions?: ReactNode;
   onSelect: (item: ActivityItem) => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
@@ -105,6 +106,7 @@ export function ActivityList({ items, dismissed, filters, onFiltersChange, onDis
         </ScrollView>}
       </> : <>
         <Text style={styles.sheetTitle}>Activity options</Text>
+        {!selecting && menuActions}
         <Pressable disabled={!dismissEnabled || !shown.length} onPress={() => { onPanelChange(null); dismissAll(); }} accessibilityRole="button" style={styles.sheetOption}>
           <Text style={[styles.sheetLabel, styles.danger]}>Dismiss all in current scope ({shown.length})</Text>
         </Pressable>
