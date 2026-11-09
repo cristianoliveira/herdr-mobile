@@ -43,6 +43,17 @@ export default function SessionScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!session, reachable]);
 
+  const wasLive = useRef(false);
+  useEffect(() => {
+    if (t?.state === "live") wasLive.current = true;
+    else if (wasLive.current && t?.state === "finished") {
+      wasLive.current = false;
+      const timer = setTimeout(back, 0);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t?.state]);
+
   return (
     <View style={[styles.screen, { paddingBottom: keyboard }]}>
       <Stack.Screen
