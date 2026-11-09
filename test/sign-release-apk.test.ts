@@ -1,7 +1,7 @@
-import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { afterEach, beforeEach, expect, test } from "vitest";
 
 let root: string;
@@ -10,6 +10,8 @@ let input: string;
 let output: string;
 let log: string;
 const script = resolve("scripts/sign-release-apk.sh");
+const alphaScript = resolve("scripts/sign-alpha-apk.sh");
+const template = resolve("node_modules/expo/template.tgz");
 const stub = `#!${process.execPath}
 const fs = require('node:fs');
 const args = process.argv.slice(2);
@@ -20,7 +22,7 @@ else if (args[0] === 'sign') fs.writeFileSync(args[args.indexOf('--out') + 1], '
 `;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "herdr signing "));
+  root = realpathSync(mkdtempSync(join(tmpdir(), "herdr signing ")));
   const tools = join(root, "sdk", "build-tools", "36.0.0");
   mkdirSync(tools, { recursive: true });
   for (const name of ["zipalign", "apksigner"]) {
@@ -95,6 +97,38 @@ test("reports missing Android signing tools before producing output", () => {
 
   expect(result.status).not.toBe(0);
   expect(result.stderr).toContain("sdkmanager");
+  expect(existsSync(output)).toBe(false);
+});
+
+function signAlpha(key: Buffer) {
+  mkdirSync(join(root, "android", "app"), { recursive: true });
+  writeFileSync(join(root, "android", "app", "debug.keystore"), key);
+  return spawnSync("bash", [alphaScript, input, output], {
+    cwd: root,
+    env: { ...env, ANDROID_KEYSTORE_FILE: "", ANDROID_KEYSTORE_PASSWORD: "", ANDROID_KEY_ALIAS: "", ANDROID_KEY_PASSWORD: "" },
+    encoding: "utf8", timeout: 10000,
+  });
+}
+
+test("alpha reuses Expo’s pinned public test key without user signing credentials", () => {
+  const key = execFileSync("tar", ["-xOf", template, "package/android/app/debug.keystore"]);
+
+  const result = signAlpha(key);
+
+  expect(result.status, result.stderr).toBe(0);
+  expect(readFileSync(output, "utf8")).toBe("signed apk");
+  const calls = commands();
+  expect(calls[1]).toContain(join(root, "android", "app", "debug.keystore"));
+  expect(calls[1]).toContain("androiddebugkey");
+  expect(calls[2][1]).toBe("verify");
+});
+
+test("alpha refuses a changed test key instead of silently breaking APK upgrades", () => {
+  const result = signAlpha(Buffer.from("a different key"));
+
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain("test keystore changed");
+  expect(commands()).toEqual([]);
   expect(existsSync(output)).toBe(false);
 });
 

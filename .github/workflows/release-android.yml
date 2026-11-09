@@ -3,18 +3,14 @@ name: Android alpha release
 on:
   push:
     tags: ['v*-alpha.*']
+  # Run workflow from main: the next alpha tag is selected automatically.
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Existing alpha tag to build, for example v0.2.0-alpha.1'
-        required: true
-        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-release-${{ inputs.tag || github.ref_name }}
+  group: android-alpha-release
   cancel-in-progress: false
 
 jobs:
@@ -22,45 +18,20 @@ jobs:
     name: Check and build standalone APK
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      commit: ${{ steps.release.outputs.commit }}
     env:
       CI: '1'
       TMPDIR: /tmp
-      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      HERDR_VARIANT: alpha
+      REQUESTED_RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Validate release tag
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync } from 'node:fs';
-          const tag = process.env.RELEASE_TAG;
-          const match = /^v(\d+\.\d+\.\d+)-alpha\.([1-9]\d*)$/.exec(tag);
-          const { expo } = JSON.parse(readFileSync('app.json', 'utf8'));
-          if (!match || match[1] !== expo.version) {
-            throw new Error(`Use an alpha tag for app.json version ${expo.version}, such as v${expo.version}-alpha.1`);
-          }
-          NODE
-          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$(git rev-parse HEAD)"
-          # Unique per workflow run, stable on reruns; above early local/EAS build codes.
-          echo "RELEASE_VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
-
-      - name: Check signing secrets before building
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [[ -z "${!name}" ]]; then
-              echo "Missing $name. Configure repository signing secrets; see docs/releasing.md." >&2
-              exit 1
-            fi
-          done
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
@@ -72,6 +43,12 @@ jobs:
         with:
           node-version: 22.23.1
           cache: pnpm
+
+      - name: Select alpha tag
+        id: release
+        run: |
+          node scripts/alpha-release.mjs
+          echo "RELEASE_VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -106,24 +83,11 @@ jobs:
             --init-script ../scripts/release-version.gradle \
             -PreactNativeArchitectures=arm64-v8a --max-workers=2
 
-      - name: Sign and verify APK
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/herdr-release.jks
+      - name: Sign and verify APK with pinned public test key
         run: |
-          if [[ -z "$ANDROID_KEYSTORE_BASE64" ]]; then
-            echo 'Configure ANDROID_KEYSTORE_BASE64 and signing secrets; see docs/releasing.md.' >&2
-            exit 1
-          fi
-          umask 077
-          trap 'rm -f "$ANDROID_KEYSTORE_FILE"' EXIT
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_FILE"
-          bash scripts/sign-release-apk.sh \
+          bash scripts/sign-alpha-apk.sh \
             android/app/build/outputs/apk/release/app-release.apk \
-            "release/herdr-mobile-$RELEASE_TAG-arm64.apk"
+            "release/herdr-alpha-$RELEASE_TAG-arm64.apk"
           (cd release && sha256sum -- *.apk > SHA256SUMS)
 
       - name: Upload verified release files
@@ -144,7 +108,8 @@ jobs:
     permissions:
       contents: write
     env:
-      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+      RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/download-artifact@v4
@@ -161,6 +126,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$RELEASE_TAG" release/*.apk release/SHA256SUMS \
-            --verify-tag --draft --prerelease --title "Herdr $RELEASE_TAG" --generate-notes \
-            --notes 'Standalone ARM64 Android APK; no Metro or Expo Go required. Install on a personal test phone, not the development-only Pixel 7 on mini. Updates may arrive through the preview OTA channel. Signing-key changes cannot upgrade an existing install; do not uninstall to bypass a signature mismatch.'
+            --target "$RELEASE_COMMIT" --draft --prerelease --title "Herdr Alpha $RELEASE_TAG" --generate-notes \
+            --notes 'Standalone ARM64 Herdr Alpha APK; no Metro or Expo Go required. Uses a public test signing key: install only APKs from this repository. Installs alongside Herdr with separate data. No OTA updates; install the next alpha APK to update. Use a personal test phone, not the development-only Pixel 7 on mini. Never uninstall to bypass a signature mismatch.'
           gh release edit "$RELEASE_TAG" --draft=false
