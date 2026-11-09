@@ -1,10 +1,11 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Stack, router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fleet, useFleet } from "../../src/fleet-store";
 import { useSettings } from "../../src/settings";
+import { panelHistory } from "../../src/panel-navigation";
 import { TerminalInput, type TerminalInputHandle } from "../../src/terminal/TerminalInput";
 import { TerminalView, type TerminalHandle, type TerminalMode } from "../../src/terminal/TerminalView";
 import { SessionActions } from "../../src/ui/SessionActions";
@@ -27,6 +28,10 @@ export default function SessionScreen() {
   const input = useRef<TerminalInputHandle>(null);
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
+
+  useFocusEffect(useCallback(() => {
+    if (session) panelHistory.visit(key);
+  }, [key, !!session]));
 
   const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
 

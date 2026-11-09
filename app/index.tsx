@@ -11,6 +11,8 @@ import { Dot } from "../src/ui/Dot";
 import { explainError, linkColor } from "../src/ui/machine-display";
 import { NewSessionSheet } from "../src/ui/NewSessionSheet";
 import { ProjectSheet } from "../src/ui/ProjectSheet";
+import { ForwardSwipe, ForwardPanelAction, openForwardPanel, useForwardPanel } from "../src/ui/PanelForward";
+import { Sheet, SheetAction } from "../src/ui/Sheet";
 import { SpaceSearchSheet } from "../src/ui/SpaceSearchSheet";
 import { SpaceList } from "../src/ui/SpaceList";
 import { colors, radius, space } from "../src/ui/theme";
@@ -19,7 +21,9 @@ import { applyUpdate, useUpdates } from "../src/updates";
 export default function Agents() {
   const { links, sessions, docs } = useFleet();
   const { machines, loaded } = useMachines();
+  const forwardPanel = useForwardPanel(sessions);
   const [picking, setPicking] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [searching, setSearching] = useState(false);
   const [startIn, setStartIn] = useState<Space | null>(null);
   const insets = useSafeAreaInsets();
@@ -43,14 +47,13 @@ export default function Agents() {
       <Stack.Screen
         options={{
           headerRight: () => (searching ? null : (
-            <Link href="/settings" asChild>
-              <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel="Settings">
-                <Ionicons name="settings-outline" size={24} color={colors.text} />
-              </Pressable>
-            </Link>
+            <Pressable onPress={() => setOptionsOpen(true)} style={styles.optionsButton} accessibilityRole="button" accessibilityLabel="Spaces options">
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
+            </Pressable>
           )),
         }}
       />
+      <ForwardSwipe onForward={forwardPanel && !searching && !picking && !startIn && !optionsOpen ? () => openForwardPanel(forwardPanel) : null}>
       <View style={styles.contentRoot} accessibilityElementsHidden={searching} importantForAccessibility={searching ? "no-hide-descendants" : "auto"}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
@@ -122,9 +125,14 @@ export default function Agents() {
           </Pressable>
         </View>
       )}
+      <Sheet visible={optionsOpen} onClose={() => setOptionsOpen(false)}>
+        {forwardPanel && <ForwardPanelAction session={forwardPanel} onClose={() => setOptionsOpen(false)} />}
+        <SheetAction label="Settings" onPress={() => { setOptionsOpen(false); router.push("/settings"); }} />
+      </Sheet>
       <NewSessionSheet space={startIn} onClose={() => setStartIn(null)} />
       <ProjectSheet visible={picking} spaces={spaces} onClose={() => setPicking(false)} />
       </View>
+      </ForwardSwipe>
       <SpaceSearchSheet visible={searching} spaces={spaces} loose={loose} showMachine={targets.length > 1} onClose={() => setSearching(false)} onSelect={(session) => { setSearching(false); open(session); }} />
     </View>
   );
@@ -144,6 +152,7 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontSize: 20, fontWeight: "700" },
   emptyText: { color: colors.muted, fontSize: 14, textAlign: "center" },
   emptyButton: { marginTop: space.sm },
+  optionsButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   bottomActions: { position: "absolute", right: 20, flexDirection: "row", alignItems: "center", gap: space.sm },
   searchButton: { minWidth: 100, height: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.sm, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: colors.surfaceHigh, borderColor: colors.border, borderWidth: 1 },
   searchButtonText: { color: colors.text, fontSize: 15, fontWeight: "600" },
