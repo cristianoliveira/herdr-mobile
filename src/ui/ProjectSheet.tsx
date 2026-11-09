@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View }
 import { fleet } from "../fleet-store";
 import type { Space } from "../spaces";
 import { useSettings } from "../settings";
-import { spaceFor, startAgent, startSpace, useProjects, type Project } from "./new-session";
+import { spaceFor, startSession, startSpace, useProjects, type Project } from "./new-session";
 import { Sheet } from "./Sheet";
 import { TextField } from "./TextField";
 import { colors, fonts, radius, space as gap } from "./theme";
@@ -41,7 +41,7 @@ export function ProjectSheet({ visible, spaces, onClose }: { visible: boolean; s
   const pick = async (p: Project, open: Space | undefined) => {
     setStarting(p.folder);
     try {
-      const key = open ? await startAgent(open, "pi") : await startSpace(p.target, p.folder);
+      const key = open ? await startSession(open, "pi") : await startSpace(p.target, p.folder);
       close();
       router.push({ pathname: "/session/[key]", params: { key } });
     } catch (e) {

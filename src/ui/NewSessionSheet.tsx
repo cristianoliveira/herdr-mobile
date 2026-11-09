@@ -2,20 +2,20 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Space } from "../spaces";
-import { AGENTS, startAgent, useInstalledAgents } from "./new-session";
+import { sessionChoices, startSession, useInstalledAgents } from "./new-session";
 import { Sheet } from "./Sheet";
 import { colors, radius, space as gap } from "./theme";
 
 export function NewSessionSheet({ space, onClose }: { space: Space | null; onClose: () => void }) {
   const [starting, setStarting] = useState<string | null>(null);
   const installed = useInstalledAgents(space?.target);
-  const agents = installed ? AGENTS.filter((a) => installed.includes(a.cmd)) : AGENTS;
+  const choices = sessionChoices(installed);
 
-  const start = async (cmd: string) => {
-    if (!space) return;
-    setStarting(cmd);
+  const start = async (cmd?: string) => {
+    if (!space || starting) return;
+    setStarting(cmd ?? "shell");
     try {
-      const key = await startAgent(space, cmd);
+      const key = await startSession(space, cmd);
       onClose();
       router.push({ pathname: "/session/[key]", params: { key } });
     } catch (e) {
@@ -28,21 +28,22 @@ export function NewSessionSheet({ space, onClose }: { space: Space | null; onClo
   return (
     <Sheet visible={!!space} onClose={onClose}>
       <Text style={styles.title} numberOfLines={1}>
-        New agent in <Text style={styles.name}>{space?.name}</Text>
+        New terminal in <Text style={styles.name}>{space?.name}</Text>
       </Text>
-      {installed && agents.length === 0 && <Text style={styles.note}>Neither pi nor claude is installed on {space?.target.label}.</Text>}
+      {installed?.length === 0 && <Text style={styles.note}>No agents found on {space?.target.label}. You can still open a shell.</Text>}
       <View style={styles.list}>
-        {agents.map((a) => (
+        {choices.map((a) => (
           <Pressable
-            key={a.cmd}
+            key={a.cmd ?? "shell"}
             accessibilityRole="button"
             accessibilityLabel={a.label}
-            disabled={!installed || !!starting}
+            disabled={(!!a.cmd && installed === null) || !!starting}
             onPress={() => void start(a.cmd)}
-            style={({ pressed }) => [styles.agent, pressed && styles.pressed, (!installed || (starting && starting !== a.cmd)) && styles.off]}
+            style={({ pressed }) => [styles.agent, pressed && styles.pressed, ((!!a.cmd && installed === null) || (starting && starting !== (a.cmd ?? "shell"))) && styles.off]}
           >
             <Text style={styles.label}>{a.label}</Text>
-            {starting === a.cmd && <ActivityIndicator color={colors.text} />}
+            {starting === (a.cmd ?? "shell") && <ActivityIndicator color={colors.text} />}
+            {!a.cmd && <Text style={styles.note}>Default shell</Text>}
           </Pressable>
         ))}
       </View>
@@ -54,7 +55,7 @@ const styles = StyleSheet.create({
   title: { color: colors.muted, fontSize: 13, marginHorizontal: 14, marginBottom: gap.xs },
   name: { color: colors.text, fontWeight: "700" },
   list: { marginBottom: gap.sm },
-  agent: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 18, borderRadius: radius.md },
+  agent: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 18, minHeight: 48, borderRadius: radius.md },
   pressed: { backgroundColor: colors.surfaceHigh },
   off: { opacity: 0.4 },
   label: { color: colors.text, fontSize: 18, fontWeight: "600" },

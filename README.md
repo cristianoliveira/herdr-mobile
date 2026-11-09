@@ -30,8 +30,9 @@ that reaches SSH works.
   sends esc, tab, arrows, ctrl combinations and the clipboard instantly.
   Message mode is for prose to agents: Enter sends it, and hc pastes it and
   presses Enter.
-- **Start agents:** a space's + then Pi or Claude starts it in that space's
-  folder, as a new tab there. The round + opens a project from `~/workspace`:
+- **Start terminals:** a space's + offers Pi, Claude, and Shell as a new tab
+  in that space's folder. Shell uses the target machine's default interactive
+  shell (such as Zsh or Bash), even when no agent is installed. The round + opens a project from `~/workspace`:
   a new space with nvim, deltoids, gob and Pi, like the desktop app's
   new-space, or a new Pi in the project's space when it has one.
 - **Manage:** interrupt, copy output, kill.

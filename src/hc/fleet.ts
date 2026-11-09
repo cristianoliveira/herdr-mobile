@@ -50,7 +50,7 @@ export type Target = {
 
 export type RunSpec = {
   cwd?: string;
-  /** Program and arguments, or a template name and its task. Omit with `line` for the machine's shell. */
+  /** Program and arguments, or a template name and its task. Omit both argv and line for the machine's interactive shell. */
   argv?: string[];
   /** A shell line instead of argv. */
   line?: string;
