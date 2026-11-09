@@ -12,6 +12,13 @@ export const AGENTS = [
   { cmd: "claude", label: "Claude" },
 ] as const;
 
+type SessionChoice = { cmd?: string; label: string };
+
+export function sessionChoices(installed: string[] | null): SessionChoice[] {
+  const agents = installed === null ? AGENTS : AGENTS.filter((agent) => installed.includes(agent.cmd));
+  return [...agents, { label: "Shell" }];
+}
+
 export const SPACE_TABS: string[][] = [["nvim-server"], ["deltoids"], ["gob", "tui"]];
 
 const AGENT_PROBE = `for c in ${AGENTS.map((a) => a.cmd).join(" ")}; do command -v "$c" >/dev/null 2>&1 && echo "$c"; done; true`;
@@ -83,9 +90,10 @@ async function presize(key: string) {
   } catch {}
 }
 
-export async function startAgent(space: Pick<Space, "target" | "id" | "folder">, cmd: string): Promise<string> {
+export async function startSession(space: Pick<Space, "target" | "id" | "folder">, cmd?: string): Promise<string> {
   const key = await fleet.run(space.target, {
-    argv: [cmd],
+    // Omitting argv asks hc for the target machine’s own interactive shell.
+    ...(cmd === undefined ? {} : { argv: [cmd] }),
     cwd: space.folder,
     labels: { "herdr.space": space.id, "herdr.tab": newId("tb") },
   });
@@ -121,7 +129,7 @@ export async function startSpace(target: Target, folder: string): Promise<string
       .catch(() => null);
   const [first, ...rest] = SPACE_TABS;
   await tab(first);
-  const pi = await startAgent(space, "pi").then(settle);
+  const pi = await startSession(space, "pi").then(settle);
   for (const argv of rest.reverse()) await tab(argv);
   return pi;
 }

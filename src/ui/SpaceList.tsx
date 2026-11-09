@@ -34,7 +34,7 @@ export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Pro
               hitSlop={10}
               onPress={() => onStart(sp)}
               accessibilityRole="button"
-              accessibilityLabel={`New agent in ${sp.name}`}
+              accessibilityLabel={`New terminal in ${sp.name}`}
               style={({ pressed }) => [styles.add, pressed && styles.addPressed]}
             >
               <Ionicons name="add" size={20} color={colors.text} />

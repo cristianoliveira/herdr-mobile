@@ -128,6 +128,35 @@ test("starts sessions anywhere it reaches, nests children, and keeps finished on
   await until(() => !again.snapshot().sessions.some((x) => x.key === key));
 }, 40_000);
 
+test("starts an interactive default shell through a remote machine route", async () => {
+  const fleet = new Fleet(open);
+  fleets.push(fleet);
+  fleet.setMachines([A]);
+  const target = await until(() => fleet.targets().find((x) => x.on === "b"));
+
+  const key = await fleet.run(target, { cwd: scratch, labels: { "herdr.space": "shell-space", "herdr.tab": "shell-tab" } });
+  const session = await until(() => fleet.snapshot().sessions.find((x) => x.key === key));
+  const route = fleet.route(key)!;
+  let screen = "";
+  const stream = await route.conn.attach(
+    { terminal: route.address, cols: 80, rows: 24 },
+    { onData: (bytes) => { screen += utf8Decode(bytes); }, onClose: () => {} },
+  );
+  try {
+    // The expected output is not present in the echoed command.
+    await route.conn.call("terminal.send", { terminal: route.address, text: "printf 'shell-%s\\n' 'ready'" });
+    await until(() => screen.includes("shell-ready"));
+
+    expect(session.address).toMatch(/^b\//);
+    expect(session.terminal.cwd).toBe(scratch);
+    expect(session.terminal.labels).toMatchObject({ "herdr.space": "shell-space", "herdr.tab": "shell-tab" });
+    expect(screen).toContain("shell-ready");
+  } finally {
+    stream.close();
+    await route.conn.call("terminal.kill", { terminal: route.address });
+  }
+}, 30_000);
+
 test("a line that went silent while the phone slept is noticed and replaced", async () => {
   let blackHole = false;
   let opened = 0;
