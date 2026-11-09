@@ -5,14 +5,15 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fleet, useFleet, useMachines } from "../src/fleet-store";
 import type { Session } from "../src/hc/fleet";
-import { spaces as spacesOf, type Space } from "../src/spaces";
+import { needsYou, spaces as spacesOf, type Space } from "../src/spaces";
 import { Button } from "../src/ui/Button";
 import { Dot } from "../src/ui/Dot";
 import { explainError, linkColor } from "../src/ui/machine-display";
 import { NewSessionSheet } from "../src/ui/NewSessionSheet";
 import { ProjectSheet } from "../src/ui/ProjectSheet";
 import { SpaceSearchSheet } from "../src/ui/SpaceSearchSheet";
-import { SpaceList } from "../src/ui/SpaceList";
+import { updateSettings, useSettings } from "../src/settings";
+import { InboxList, SpaceList } from "../src/ui/SpaceList";
 import { colors, radius, space } from "../src/ui/theme";
 import { applyUpdate, useUpdates } from "../src/updates";
 
@@ -21,6 +22,7 @@ export default function Agents() {
   const { machines, loaded } = useMachines();
   const [picking, setPicking] = useState(false);
   const [searching, setSearching] = useState(false);
+  const { inbox } = useSettings();
   const [startIn, setStartIn] = useState<Space | null>(null);
   const insets = useSafeAreaInsets();
   const { isUpdatePending } = useUpdates();
@@ -35,6 +37,7 @@ export default function Agents() {
   const targets = fleet.targets();
   const { spaces, loose } = spacesOf(docs, targets, sessions);
   const none = spaces.length === 0 && loose.length === 0;
+  const waiting = spaces.some((sp) => sp.agents.some(needsYou)) || loose.some(needsYou);
 
   const open = (s: Session) => router.push({ pathname: "/session/[key]", params: { key: s.key } });
 
@@ -42,12 +45,24 @@ export default function Agents() {
     <View style={styles.screen}>
       <Stack.Screen
         options={{
+          title: inbox ? "Inbox" : "Spaces",
           headerRight: () => (searching ? null : (
-            <Link href="/settings" asChild>
-              <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel="Settings">
-                <Ionicons name="settings-outline" size={24} color={colors.text} />
+            <View style={styles.headerActions}>
+              <Pressable
+                hitSlop={10}
+                onPress={() => void updateSettings({ inbox: !inbox })}
+                accessibilityRole="switch"
+                accessibilityLabel="Inbox"
+                accessibilityState={{ checked: inbox }}
+              >
+                <Ionicons name={inbox ? "file-tray" : "file-tray-outline"} size={24} color={inbox ? colors.accent : colors.text} />
               </Pressable>
-            </Link>
+              <Link href="/settings" asChild>
+                <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel="Settings">
+                  <Ionicons name="settings-outline" size={24} color={colors.text} />
+                </Pressable>
+              </Link>
+            </View>
           )),
         }}
       />
@@ -84,9 +99,19 @@ export default function Agents() {
           </Link>
         )}
 
-        <SpaceList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onStart={setStartIn} />
+        {inbox
+          ? <InboxList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} />
+          : <SpaceList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onStart={setStartIn} />}
 
-        {machines.length > 0 && connected && none && (
+        {inbox && machines.length > 0 && connected && !waiting && (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>Inbox empty</Text>
+            <Text style={styles.emptyText}>No agent needs you right now.</Text>
+            <Button title="Show all spaces" variant="secondary" onPress={() => void updateSettings({ inbox: false })} style={styles.emptyButton} />
+          </View>
+        )}
+
+        {!inbox && machines.length > 0 && connected && none && (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No spaces yet</Text>
             <Text style={styles.emptyText}>Tap + to open a project.</Text>
@@ -125,6 +150,7 @@ export default function Agents() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   contentRoot: { flex: 1 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: space.lg },
   content: { padding: space.md, paddingTop: space.md },
   banner: { flexDirection: "row", alignItems: "center", gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: space.md, marginBottom: space.md - 2 },
   bannerText: { color: colors.text, fontSize: 14, flex: 1 },

@@ -11,6 +11,9 @@ that reaches SSH works.
 - **Spaces:** your Herdr desktop app spaces on every machine, each with its
   agents (those that need you first, sub-agents under their parent). Factory
   spaces come last. Tap an agent to open it; swipe right on it to go back.
+  The tray button at the top turns on the Inbox: only the agents that need
+  you (blocked, failed, or finished their turn), most urgent first. Handle
+  them and they leave; tap the tray again to see all spaces.
 - **Search:** tap the magnifying glass beside the bottom + button in Spaces. Type a space,
   agent, or status message; choose a machine or space scope from the search
   sheet. Results keep their space context, and tapping an agent opens it.

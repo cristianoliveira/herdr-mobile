@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Session } from "../hc/fleet";
-import type { Space } from "../spaces";
+import { byUrgency, needsYou, type Space } from "../spaces";
 import { StatusDot } from "./Dot";
 import { ago, agentTitle } from "./session-display";
 import { colors, fonts, radius, space as gap } from "./theme";
@@ -59,7 +59,22 @@ export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Pro
   );
 }
 
-function AgentRow({ session, sub, onPress }: { session: Session; sub: boolean; onPress: () => void }) {
+/** The agents that need you, most urgent first, each with the space it belongs to. */
+export function InboxList({ spaces, loose, showMachine, onSelect }: Omit<Props, "onStart">) {
+  const rows = [
+    ...spaces.flatMap((sp) => sp.agents.map((session) => ({ session, place: showMachine ? `${sp.name} · ${sp.target.label}` : sp.name }))),
+    ...loose.map((session) => ({ session, place: showMachine ? `Not in a space · ${session.machine}` : "Not in a space" })),
+  ].filter(({ session }) => needsYou(session)).sort((a, b) => byUrgency(a.session, b.session));
+  return (
+    <View>
+      {rows.map(({ session, place }) => (
+        <AgentRow key={session.key} session={session} sub={false} place={place} onPress={() => onSelect(session)} />
+      ))}
+    </View>
+  );
+}
+
+function AgentRow({ session, sub, place, onPress }: { session: Session; sub: boolean; place?: string; onPress: () => void }) {
   const t = session.terminal;
   const title = agentTitle(session);
   const msg = t.status?.msg && !title.includes(t.status.msg) ? t.status.msg : null;
@@ -76,6 +91,11 @@ function AgentRow({ session, sub, onPress }: { session: Session; sub: boolean; o
         {msg ? (
           <Text style={[styles.msg, blocked && { color: colors.blocked }]} numberOfLines={1}>
             {msg}
+          </Text>
+        ) : null}
+        {place ? (
+          <Text style={styles.place} numberOfLines={1}>
+            {place}
           </Text>
         ) : null}
       </View>
@@ -101,5 +121,6 @@ const styles = StyleSheet.create({
   indicator: { width: 20, alignItems: "center" },
   title: { color: colors.text, fontSize: 15 },
   msg: { color: colors.muted, fontSize: 13, marginTop: 2 },
+  place: { color: colors.muted, fontSize: 12, fontFamily: fonts.mono, marginTop: 2 },
   age: { color: colors.muted, fontSize: 12, fontFamily: fonts.mono },
 });

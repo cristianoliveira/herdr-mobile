@@ -10,6 +10,8 @@ export type Settings = {
   defaultMode: TerminalMode;
   /** How the bottom bar takes input: keys straight to the terminal, or a message hc pastes. */
   inputMode: "direct" | "message";
+  /** Spaces shows only the agents that need you, most urgent first. */
+  inbox: boolean;
 };
 
 const DEFAULTS: Settings = {
@@ -18,6 +20,7 @@ const DEFAULTS: Settings = {
   projectLayout: "grouped",
   defaultMode: "fit",
   inputMode: "direct",
+  inbox: false,
 };
 const KEY = "settings.v1";
 
