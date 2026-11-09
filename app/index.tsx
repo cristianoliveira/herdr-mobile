@@ -102,8 +102,7 @@ export default function Agents() {
             accessibilityLabel="Search spaces and agents"
             style={({ pressed }) => [styles.searchButton, pressed && styles.fabPressed]}
           >
-            <Ionicons name="search" size={20} color={colors.text} />
-            <Text style={styles.searchButtonText}>Search</Text>
+            <Ionicons name="search" size={24} color={colors.text} />
           </Pressable>
           <Pressable
             onPress={() => setPicking(true)}
@@ -136,8 +135,7 @@ const styles = StyleSheet.create({
   emptyText: { color: colors.muted, fontSize: 14, textAlign: "center" },
   emptyButton: { marginTop: space.sm },
   bottomActions: { position: "absolute", right: 20, flexDirection: "row", alignItems: "center", gap: space.sm },
-  searchButton: { minWidth: 100, height: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.sm, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: colors.surfaceHigh, borderColor: colors.border, borderWidth: 1 },
-  searchButtonText: { color: colors.text, fontSize: 15, fontWeight: "600" },
+  searchButton: { width: 56, height: 56, alignItems: "center", justifyContent: "center", borderRadius: radius.full, backgroundColor: colors.surfaceHigh, borderColor: colors.border, borderWidth: 1 },
   fab: {
     width: 56,
     height: 56,
