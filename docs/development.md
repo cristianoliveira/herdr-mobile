@@ -121,6 +121,19 @@ Choose **Direct folders** for `<path>/<repo>`, or **Owner / repo** for
 layout persist across app restarts. The default remains `~/workspace` with
 owner/repo grouping. Directories are not created automatically.
 
+## Activity filters
+
+Open **Activity → Filters → Type** to choose All types, Waiting for input,
+Error, Completed, Working, Idle or Status unknown. Type combines with Machine
+and Space. Completed includes successful finished sessions; failed finished
+sessions appear under Error.
+
+All three filters survive navigation and app restarts. Saved scopes are not
+reset when a machine or space is temporarily unavailable. Dismiss all applies
+only to the filtered scope. If saved filters cannot load, Activity waits for
+Retry instead of showing an unfiltered list. Failed saves keep the previous
+filters active and show an error.
+
 ## Back and Forward between panels and lists
 
 Swipe right in a panel to return to its list. On Spaces, swipe left across

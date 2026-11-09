@@ -15,6 +15,35 @@ function session(key: string, state: string, statusMs?: number, terminalState = 
 }
 
 describe("activity", () => {
+  test("filters by type together with machine and space, including finished successes and failures", () => {
+    const done = session("core:done", "working", 200, "finished", 0);
+    const failed = session("core:failed", "working", 300, "finished", 1);
+    const elsewhere = session("other:error", "error", 400);
+    const space = { key: "core:space", target: {} as Space["target"], id: "space", name: "Workspace", folder: "/work", factory: false, agents: [done, failed] } satisfies Space;
+    const items = activityItems([done, failed, elsewhere], [space]);
+    const filters = { machine: "core", space: space.key, kind: "error" } as const;
+
+    const errors = filterActivity(items, filters);
+    const completed = filterActivity(items, { ...filters, kind: "completed" });
+
+    expect(errors.map(({ session }) => session.key)).toEqual([failed.key]);
+    expect(completed.map(({ session }) => session.key)).toEqual([done.key]);
+    expect(filterActivity(items, { ...filters, kind: null })).toHaveLength(2);
+    expect(filterActivity(items, { ...filters, kind: "waiting" })).toEqual([]);
+  });
+
+  test("type filtering limits bulk dismissal and removes hidden selections", () => {
+    const items = activityItems([session("core:error", "error", 200), session("core:idle", "idle", 300)], []);
+    const filters = { machine: null, space: null, kind: "error" } as const;
+    const scoped = filterActivity(items, filters);
+    const selected = items.map(activitySelectionId);
+
+    const dismissed = dismissItems({}, scoped);
+
+    expect(Object.keys(dismissed)).toEqual(["core:error"]);
+    expect(pruneActivitySelection(selected, items, {}, filters)).toEqual(scoped.map(activitySelectionId));
+    expect(visibleActivity(items, dismissed, { ...filters, kind: null }).map(({ session }) => session.key)).toEqual(["core:idle"]);
+  });
   test("captures deliberate left swipes only and reveals dismissal past the threshold", () => {
     expect(shouldCaptureDismissSwipe(-20, 2)).toBe(true);
     expect(shouldCaptureDismissSwipe(40, 1)).toBe(false);
@@ -70,14 +99,14 @@ describe("activity", () => {
     elsewhere.machine = "other-machine";
     const space = { key: "core:space", target: {} as Space["target"], id: "space", name: "Workspace", folder: "/work", factory: false, agents: [member] } satisfies Space;
     const [inSpace, outside] = activityItems([member, elsewhere], [space]);
-    const filtered = filterActivity([inSpace, outside], { machine: "core", space: space.key });
+    const filtered = filterActivity([inSpace, outside], { machine: "core", space: space.key, kind: null });
     expect(filtered.map(({ session: item }) => item.key)).toEqual([member.key]);
     const hidden = dismissItems({}, filtered);
-    expect(visibleActivity([inSpace, outside], hidden, { machine: "core", space: space.key })).toEqual([]);
-    expect(visibleActivity([inSpace, outside], hidden, { machine: null, space: null })).toHaveLength(1);
-    expect(filterActivity([inSpace, outside], { machine: null, space: "__none__" }).map(({ session: item }) => item.key)).toEqual([elsewhere.key]);
+    expect(visibleActivity([inSpace, outside], hidden, { machine: "core", space: space.key, kind: null })).toEqual([]);
+    expect(visibleActivity([inSpace, outside], hidden, { machine: null, space: null, kind: null })).toHaveLength(1);
+    expect(filterActivity([inSpace, outside], { machine: null, space: "__none__", kind: null }).map(({ session: item }) => item.key)).toEqual([elsewhere.key]);
     const newEvent = activityItems([session(member.key, "error", 500)], [space]);
-    expect(visibleActivity(newEvent, hidden, { machine: null, space: null })).toHaveLength(1);
+    expect(visibleActivity(newEvent, hidden, { machine: null, space: null, kind: null })).toHaveLength(1);
   });
 
   test("uses stable core IDs for machine filtering and prunes stale selection revisions", () => {
@@ -87,8 +116,8 @@ describe("activity", () => {
     two.machine = "Shared name";
     const oldItems = activityItems([one], []);
     const revisedItems = activityItems([session(one.key, "error", 400)], []);
-    expect(filterActivity([...oldItems, ...activityItems([two], [])], { machine: "core-a", space: null })).toHaveLength(1);
-    expect(pruneActivitySelection([activitySelectionId(oldItems[0])], revisedItems, {}, { machine: null, space: null })).toEqual([]);
+    expect(filterActivity([...oldItems, ...activityItems([two], [])], { machine: "core-a", space: null, kind: null })).toHaveLength(1);
+    expect(pruneActivitySelection([activitySelectionId(oldItems[0])], revisedItems, {}, { machine: null, space: null, kind: null })).toEqual([]);
   });
 
   test("dismissal hides the exact revision, and a newer event in the same state resurfaces", () => {
@@ -96,7 +125,7 @@ describe("activity", () => {
     const dismissed = dismissItems({}, before);
     const unchanged = activityItems([session("core:agent", "working", 300)], []);
     const newer = activityItems([session("core:agent", "working", 301)], []);
-    const filters = { machine: null, space: null };
+    const filters = { machine: null, space: null, kind: null };
 
     expect(visibleActivity(unchanged, dismissed, filters)).toEqual([]);
     expect(visibleActivity(newer, dismissed, filters).map((item) => item.session.key)).toEqual(["core:agent"]);
@@ -105,8 +134,8 @@ describe("activity", () => {
   test("an unavailable scope stays empty rather than exposing all activity", () => {
     const items = activityItems([session("core:agent", "working", 300)], []);
 
-    expect(filterActivity(items, { machine: "missing-core", space: null })).toEqual([]);
-    expect(filterActivity(items, { machine: null, space: "missing-space" })).toEqual([]);
+    expect(filterActivity(items, { machine: "missing-core", space: null, kind: null })).toEqual([]);
+    expect(filterActivity(items, { machine: null, space: "missing-space", kind: null })).toEqual([]);
   });
 
   test("handles missing change timestamps and duplicate keys deterministically", () => {

@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { activityItems, EMPTY_ACTIVITY_FILTERS, type ActivityFilters, type ActivityItem } from "../src/activity";
 import { dismissActivityItems, loadActivityDismissals, undoActivityItems } from "../src/activity-dismissals";
+import { loadActivityFilters, saveActivityFilters } from "../src/activity-filters";
 import { fleet, useFleet } from "../src/fleet-store";
 import type { Session } from "../src/hc/fleet";
 import { spaces as spacesOf } from "../src/spaces";
@@ -20,6 +21,11 @@ export default function Activity() {
   const [dismissed, setDismissed] = useState<Record<string, string>>({});
   const [dismissalsLoaded, setDismissalsLoaded] = useState(false);
   const [filters, setFilters] = useState<ActivityFilters>(EMPTY_ACTIVITY_FILTERS);
+  const [filtersLoaded, setFiltersLoaded] = useState(false);
+  const [filtersSaving, setFiltersSaving] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
+  const [filterLoadAttempt, setFilterLoadAttempt] = useState(0);
+  const writingFilters = useRef(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [pendingDismiss, setPendingDismiss] = useState<ActivityItem[] | null>(null);
   const [pendingUndo, setPendingUndo] = useState<ActivityItem[] | null>(null);
@@ -47,6 +53,35 @@ export default function Activity() {
     });
     return () => { mounted = false; };
   }, []);
+  useEffect(() => {
+    let mounted = true;
+    void loadActivityFilters().then((saved) => {
+      if (!mounted) return;
+      setFilters(saved);
+      setFiltersLoaded(true);
+      setFilterError(null);
+    }).catch(() => {
+      if (mounted) setFilterError("Could not load saved Activity filters. Retry to restore your scope.");
+    });
+    return () => { mounted = false; };
+  }, [filterLoadAttempt]);
+
+  const changeFilters = async (next: ActivityFilters) => {
+    if (!filtersLoaded || writingFilters.current) return;
+    writingFilters.current = true;
+    setFiltersSaving(true);
+    setFilterError(null);
+    try {
+      await saveActivityFilters(next);
+      setFilters(next);
+    } catch {
+      setFilterError("Could not save Activity filters. Previous filters remain active; choose again to retry.");
+    } finally {
+      writingFilters.current = false;
+      setFiltersSaving(false);
+    }
+  };
+
   const targets = fleet.targets();
   const { spaces } = spacesOf(docs, targets, sessions);
   const items = activityItems(sessions, spaces);
@@ -101,8 +136,8 @@ export default function Activity() {
     <Stack.Screen options={{
       title: "Activity",
       headerRight: () => <View style={styles.headerActions}>
-        <Pressable onPress={() => setPanel("filters")} accessibilityRole="button" accessibilityLabel="Activity filters" style={styles.headerButton}><Ionicons name={filters.machine || filters.space ? "filter" : "filter-outline"} size={21} color={filters.machine || filters.space ? colors.accent : colors.text} /></Pressable>
-        <Pressable onPress={() => setPanel("menu")} accessibilityRole="button" accessibilityLabel="Activity options" style={styles.headerButton}><Ionicons name="ellipsis-horizontal" size={22} color={colors.text} /></Pressable>
+        <Pressable disabled={!filtersLoaded || filtersSaving} onPress={() => setPanel("filters")} accessibilityRole="button" accessibilityLabel="Activity filters" style={styles.headerButton}><Ionicons name={filters.machine || filters.space || filters.kind ? "filter" : "filter-outline"} size={21} color={filters.machine || filters.space || filters.kind ? colors.accent : colors.text} /></Pressable>
+        <Pressable disabled={!filtersLoaded} onPress={() => setPanel("menu")} accessibilityRole="button" accessibilityLabel="Activity options" style={styles.headerButton}><Ionicons name="ellipsis-horizontal" size={22} color={colors.text} /></Pressable>
       </View>,
     }} />
     <View style={styles.content}>
@@ -112,23 +147,29 @@ export default function Activity() {
         {dismissalsLoaded && pendingDismiss && <Pressable disabled={saving} onPress={() => void dismiss(pendingDismiss)} accessibilityRole="button" style={styles.retry}><Text style={styles.retryText}>Retry save</Text></Pressable>}
         {dismissalsLoaded && pendingUndo && <Pressable disabled={saving} onPress={() => void undo()} accessibilityRole="button" style={styles.retry}><Text style={styles.retryText}>Retry Undo</Text></Pressable>}
       </View>}
-      <ActivityList
+      {filterError && <View style={styles.error}>
+        <Text accessibilityRole="alert" style={styles.errorText}>{filterError}</Text>
+        {!filtersLoaded && <Pressable accessibilityRole="button" accessibilityLabel="Retry loading Activity filters" onPress={() => { setFilterError(null); setFilterLoadAttempt((attempt) => attempt + 1); }} style={styles.retry}><Text style={styles.retryText}>Retry</Text></Pressable>}
+      </View>}
+      {filtersLoaded ? <ActivityList
         bottomInset={insets.bottom + space.xs}
         menuActions={forwardPanel && <ForwardPanelAction session={forwardPanel} onClose={() => setPanel(null)} />}
         panel={panel}
         onPanelChange={setPanel}
         onUndo={() => void undo()}
         undoItems={undoItems}
-        dismissEnabled={dismissalsLoaded && !saving}
+        dismissEnabled={dismissalsLoaded && !saving && !filtersSaving}
         items={items}
         dismissed={dismissed}
         filters={filters}
-        onFiltersChange={setFilters}
+        filtersSaving={filtersSaving}
+        filterError={filterError}
+        onFiltersChange={(next) => void changeFilters(next)}
         onDismiss={(item) => dismiss([item])}
         onDismissMany={dismiss}
         showMachine={targets.length > 1}
         onSelect={({ session }) => open(session)}
-      />
+      /> : !filterError && <Text style={styles.loading}>Loading Activity filters…</Text>}
     </View>
   </View>;
 }
@@ -140,6 +181,7 @@ const styles = StyleSheet.create({
   headerButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   error: { backgroundColor: colors.surface, padding: space.md, borderRadius: 12, marginBottom: space.md },
   errorText: { color: colors.blocked, fontSize: 14 },
+  loading: { color: colors.muted, padding: space.md },
   retry: { alignSelf: "flex-start", minHeight: 48, justifyContent: "center", paddingHorizontal: space.sm },
   retryText: { color: colors.accent, fontWeight: "700" },
 });
