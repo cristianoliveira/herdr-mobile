@@ -1,8 +1,10 @@
 import { router } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { fleet } from "../fleet-store";
 import type { Space } from "../spaces";
+import { useSettings } from "../settings";
 import { spaceFor, startAgent, startSpace, useProjects, type Project } from "./new-session";
 import { Sheet } from "./Sheet";
 import { TextField } from "./TextField";
@@ -14,11 +16,12 @@ export function ProjectSheet({ visible, spaces, onClose }: { visible: boolean; s
   const [query, setQuery] = useState("");
   const [starting, setStarting] = useState<string | null>(null);
   const targets = visible ? fleet.targets() : [];
-  const { projects, loading } = useProjects(targets, visible);
+  const { projectPaths } = useSettings();
+  const { projects, loading, errors } = useProjects(targets, visible);
 
   const items = useMemo((): Item[] => {
     const q = query.trim().toLowerCase();
-    const shown = projects.filter((p) => !q || `${p.owner}/${p.repo}`.toLowerCase().includes(q));
+    const shown = projects.filter((p) => !q || `${p.owner ? `${p.owner}/` : ""}${p.repo}`.toLowerCase().includes(q));
     const many = new Set(shown.map((p) => p.target.coreId)).size > 1;
     const out: Item[] = [];
     let last = "";
@@ -52,7 +55,23 @@ export function ProjectSheet({ visible, spaces, onClose }: { visible: boolean; s
     <Sheet visible={visible} onClose={close}>
       <TextField style={styles.search} value={query} onChangeText={setQuery} placeholder="Open a project" autoCorrect={false} spellCheck={false} inset />
       {loading && <ActivityIndicator style={styles.loading} color={colors.muted} />}
-      {!loading && items.length === 0 && <Text style={styles.note}>{query ? `Nothing matches “${query}”.` : "No projects in ~/workspace."}</Text>}
+      {!loading && items.length === 0 && <Text style={styles.note}>{query ? `Nothing matches “${query}”.` : (projectPaths.length ? "No projects in the configured paths." : "Add project paths in Settings to find projects.")}</Text>}
+      <View style={styles.actions}>
+        <Pressable accessibilityRole="button" onPress={() => { close(); router.push("/settings"); }}>
+          <Text style={styles.note}>Configure project paths →</Text>
+        </Pressable>
+        {errors.length > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${errors.length} project ${errors.length === 1 ? "error" : "errors"}. Show details.`}
+            onPress={() => Alert.alert("Project errors", errors.join("\n\n"))}
+            style={styles.errors}
+          >
+            <Ionicons name="warning-outline" size={16} color={colors.muted} />
+            <Text style={styles.errorCount}>{errors.length}</Text>
+          </Pressable>
+        )}
+      </View>
       <FlatList
         data={items}
         keyboardShouldPersistTaps="handled"
@@ -63,13 +82,13 @@ export function ProjectSheet({ visible, spaces, onClose }: { visible: boolean; s
           ) : (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${item.project.owner}/${item.project.repo}`}
+              accessibilityLabel={item.project.owner ? `${item.project.owner}/${item.project.repo}` : item.project.repo}
               disabled={!!starting}
               onPress={() => void pick(item.project, item.open)}
               style={({ pressed }) => [styles.row, pressed && styles.pressed, starting && starting !== item.project.folder && styles.off]}
             >
               <Text style={styles.name} numberOfLines={1}>
-                <Text style={styles.owner}>{item.project.owner}/</Text>
+                {!!item.project.owner && <Text style={styles.owner}>{item.project.owner}/</Text>}
                 {item.project.repo}
               </Text>
               {starting === item.project.folder ? (
@@ -90,6 +109,9 @@ export function ProjectSheet({ visible, spaces, onClose }: { visible: boolean; s
 const styles = StyleSheet.create({
   search: { marginHorizontal: gap.xs, marginBottom: gap.sm },
   loading: { marginVertical: gap.xl },
+  actions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  errors: { minWidth: 44, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: gap.xs, paddingHorizontal: gap.sm },
+  errorCount: { color: colors.muted, fontSize: 12 },
   note: { color: colors.muted, fontSize: 14, padding: 14 },
   heading: { color: colors.muted, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, marginHorizontal: 14, marginTop: gap.md, marginBottom: gap.xs },
   row: { flexDirection: "row", alignItems: "center", gap: gap.sm, paddingHorizontal: 14, paddingVertical: 13, borderRadius: radius.md },
