@@ -67,7 +67,7 @@ export function ActivityList({ items, dismissed, filters, onFiltersChange, onDis
   return <View style={styles.container}>
     <ScrollView style={styles.scroll} contentContainerStyle={[styles.listContent, { paddingBottom: bottomInset + gap.sm }]}>
       {shown.length === 0 ? (
-      <Text style={styles.empty}>{items.length === 0 ? "No session activity yet." : scoped.length === 0 ? "No activity matches these filters." : "All matching activity is dismissed."}</Text>
+      <Text style={styles.empty}>{items.length === 0 ? "No session activity yet." : scoped.length === 0 ? "No activity matches these filters." : "You’re all caught up in this scope."}</Text>
     ) : shown.map((item) => <ActivityRow
       key={item.session.key}
       item={item}
@@ -87,8 +87,8 @@ export function ActivityList({ items, dismissed, filters, onFiltersChange, onDis
       <Text style={styles.selectedCount}>{selectedItems.length} selected</Text>
       <Pressable disabled={!dismissEnabled} onPress={() => { onDismissMany(selectedItems); setSelected([]); }} accessibilityRole="button" accessibilityLabel={`Dismiss ${selectedItems.length} selected sessions`} style={styles.barButton}><Text style={styles.barText}>Dismiss</Text></Pressable>
     </View> : undoItems && <View style={[styles.footer, { marginBottom: bottomInset }]}>
-      <Text style={styles.undoText}>{undoItems.length} {undoItems.length === 1 ? "entry" : "entries"} dismissed</Text>
-      <Pressable disabled={!dismissEnabled} onPress={onUndo} accessibilityRole="button" accessibilityLabel="Undo dismissal" style={styles.undoButton}><Text style={styles.undoAction}>Undo</Text></Pressable>
+      <Text style={styles.undoText}>{undoItems.length} {undoItems.length === 1 ? "entry" : "entries"} cleared</Text>
+      <Pressable disabled={!dismissEnabled} onPress={onUndo} accessibilityRole="button" accessibilityLabel="Undo cleared activity" style={styles.undoButton}><Text style={styles.undoAction}>Undo</Text></Pressable>
     </View>}
 
     <Sheet visible={panel !== null} onClose={() => onPanelChange(null)}>
@@ -189,6 +189,7 @@ function ActivityRow({ item, selected, selecting, dismissEnabled, showMachine, o
           else if (nativeEvent.actionName === "select" && dismissEnabled) onToggleSelect();
         }}
         accessibilityLabel={`${labels[kind]}: ${agentTitle(session)}, ${context}`}
+        accessibilityHint={selecting ? "Toggle selection" : "Open this panel and mark this activity as read"}
         style={({ pressed }) => [styles.session, pressed && styles.pressed]}
       >
         {selecting && <Ionicons name={selected ? "checkmark-circle" : "ellipse-outline"} size={20} color={selected ? colors.accent : colors.muted} />}

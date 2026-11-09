@@ -19,6 +19,15 @@ export type ActivityItem = {
   space?: Space;
 };
 
+export async function openActivityItem(item: ActivityItem, actions: {
+  openPanel: (key: string) => void;
+  markRead: (items: ActivityItem[]) => Promise<unknown>;
+}): Promise<void> {
+  actions.openPanel(item.session.key);
+  // Acknowledge the selected event, not any newer event arriving in its panel.
+  await actions.markRead([item]);
+}
+
 export const ACTIVITY_KIND_LABELS = { waiting: "Waiting for input", error: "Error", completed: "Completed", working: "Working", idle: "Idle", unknown: "Status unknown" } satisfies Record<ActivityKind, string>;
 
 export type ActivityFilters = { machine: string | null; space: string | null; kind: ActivityKind | null };

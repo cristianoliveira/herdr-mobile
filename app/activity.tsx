@@ -3,11 +3,10 @@ import { Stack, router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { activityItems, EMPTY_ACTIVITY_FILTERS, type ActivityFilters, type ActivityItem } from "../src/activity";
+import { activityItems, openActivityItem, EMPTY_ACTIVITY_FILTERS, type ActivityFilters, type ActivityItem } from "../src/activity";
 import { dismissActivityItems, loadActivityDismissals, undoActivityItems } from "../src/activity-dismissals";
 import { loadActivityFilters, saveActivityFilters } from "../src/activity-filters";
 import { fleet, useFleet } from "../src/fleet-store";
-import type { Session } from "../src/hc/fleet";
 import { spaces as spacesOf } from "../src/spaces";
 import { ActivityList } from "../src/ui/ActivityList";
 import { ForwardPanelAction, useForwardPanel } from "../src/ui/PanelForward";
@@ -48,7 +47,7 @@ export default function Activity() {
     }).catch(() => {
       if (mounted) {
         setDismissalsLoaded(false);
-        setStorageError("Could not load saved Activity dismissals.");
+        setStorageError("Could not load saved Activity read state.");
       }
     });
     return () => { mounted = false; };
@@ -85,7 +84,6 @@ export default function Activity() {
   const targets = fleet.targets();
   const { spaces } = spacesOf(docs, targets, sessions);
   const items = activityItems(sessions, spaces);
-  const open = (session: Session) => router.push({ pathname: "/session/[key]", params: { key: session.key } });
   const dismiss = useCallback(async (items: ActivityItem[]) => {
     if (writing.current) return;
     writing.current = true;
@@ -99,12 +97,24 @@ export default function Activity() {
       setPendingDismiss(null);
       setUndoItems(items);
     } catch {
-      setStorageError("Could not save dismissals. Entries remain visible until saved.");
+      setStorageError("Could not save Activity read state. Entries remain unread until saved.");
     } finally {
       writing.current = false;
       setSaving(false);
     }
   }, []);
+  const open = async (item: ActivityItem) => {
+    if (writing.current) return;
+    try {
+      await openActivityItem(item, {
+        openPanel: (key) => router.push({ pathname: "/session/[key]", params: { key } }),
+        markRead: dismiss,
+      });
+    } catch {
+      setStorageError("Could not open this panel. The entry remains unread.");
+    }
+  };
+
   const undo = useCallback(async () => {
     if (!undoItems || writing.current) return;
     writing.current = true;
@@ -118,7 +128,7 @@ export default function Activity() {
       setUndoItems(null);
       setPendingUndo(null);
     } catch {
-      setStorageError("Could not save Undo. Dismissed entries remain hidden until saved.");
+      setStorageError("Could not save Undo. Read or dismissed entries remain hidden until saved.");
     } finally {
       writing.current = false;
       setSaving(false);
@@ -129,15 +139,15 @@ export default function Activity() {
     void loadActivityDismissals().then((saved) => {
       setDismissed(saved);
       setDismissalsLoaded(true);
-    }).catch(() => setStorageError("Could not load saved Activity dismissals."));
+    }).catch(() => setStorageError("Could not load saved Activity read state."));
   };
 
   return <View style={styles.screen}>
     <Stack.Screen options={{
       title: "Activity",
       headerRight: () => <View style={styles.headerActions}>
-        <Pressable disabled={!filtersLoaded || filtersSaving} onPress={() => setPanel("filters")} accessibilityRole="button" accessibilityLabel="Activity filters" style={styles.headerButton}><Ionicons name={filters.machine || filters.space || filters.kind ? "filter" : "filter-outline"} size={21} color={filters.machine || filters.space || filters.kind ? colors.accent : colors.text} /></Pressable>
-        <Pressable disabled={!filtersLoaded} onPress={() => setPanel("menu")} accessibilityRole="button" accessibilityLabel="Activity options" style={styles.headerButton}><Ionicons name="ellipsis-horizontal" size={22} color={colors.text} /></Pressable>
+        <Pressable disabled={!filtersLoaded || !dismissalsLoaded || filtersSaving} onPress={() => setPanel("filters")} accessibilityRole="button" accessibilityLabel="Activity filters" style={styles.headerButton}><Ionicons name={filters.machine || filters.space || filters.kind ? "filter" : "filter-outline"} size={21} color={filters.machine || filters.space || filters.kind ? colors.accent : colors.text} /></Pressable>
+        <Pressable disabled={!filtersLoaded || !dismissalsLoaded} onPress={() => setPanel("menu")} accessibilityRole="button" accessibilityLabel="Activity options" style={styles.headerButton}><Ionicons name="ellipsis-horizontal" size={22} color={colors.text} /></Pressable>
       </View>,
     }} />
     <View style={styles.content}>
@@ -151,7 +161,7 @@ export default function Activity() {
         <Text accessibilityRole="alert" style={styles.errorText}>{filterError}</Text>
         {!filtersLoaded && <Pressable accessibilityRole="button" accessibilityLabel="Retry loading Activity filters" onPress={() => { setFilterError(null); setFilterLoadAttempt((attempt) => attempt + 1); }} style={styles.retry}><Text style={styles.retryText}>Retry</Text></Pressable>}
       </View>}
-      {filtersLoaded ? <ActivityList
+      {filtersLoaded && dismissalsLoaded ? <ActivityList
         bottomInset={insets.bottom + space.xs}
         menuActions={forwardPanel && <ForwardPanelAction session={forwardPanel} onClose={() => setPanel(null)} />}
         panel={panel}
@@ -168,8 +178,8 @@ export default function Activity() {
         onDismiss={(item) => dismiss([item])}
         onDismissMany={dismiss}
         showMachine={targets.length > 1}
-        onSelect={({ session }) => open(session)}
-      /> : !filterError && <Text style={styles.loading}>Loading Activity filters…</Text>}
+        onSelect={(item) => void open(item)}
+      /> : !filterError && !storageError && <Text style={styles.loading}>Loading Activity…</Text>}
     </View>
   </View>;
 }

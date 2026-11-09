@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from "vitest";
-import { activityItems } from "../src/activity";
+import { activityItems, EMPTY_ACTIVITY_FILTERS, openActivityItem, visibleActivity } from "../src/activity";
 import type { Session } from "../src/hc/fleet";
 
 const storage = vi.hoisted(() => ({ value: null as string | null, failRead: false, failWrite: false }));
@@ -24,6 +24,65 @@ function items(key: string, statusMs = 100) {
   };
   return activityItems([session], []);
 }
+
+test("opening an unread entry opens its panel and durably clears only that entry", async () => {
+  const dismissals = await import("../src/activity-dismissals");
+  const [entry] = items("core:read");
+  const [unread] = items("core:unread");
+  const opened: string[] = [];
+
+  await openActivityItem(entry, {
+    openPanel: (key) => opened.push(key),
+    markRead: dismissals.dismissActivityItems,
+  });
+  vi.resetModules();
+  const restarted = await import("../src/activity-dismissals");
+  const read = await restarted.loadActivityDismissals();
+
+  expect(opened).toEqual([entry.session.key]);
+  expect(visibleActivity([entry, unread], read, EMPTY_ACTIVITY_FILTERS).map(({ session }) => session.key)).toEqual([unread.session.key]);
+});
+
+test("new activity from a previously opened agent resurfaces and Undo restores the read entry", async () => {
+  const dismissals = await import("../src/activity-dismissals");
+  const [entry] = items("core:read", 100);
+  const [newer] = items("core:read", 200);
+  await openActivityItem(entry, { openPanel: () => {}, markRead: dismissals.dismissActivityItems });
+
+  const read = await dismissals.loadActivityDismissals();
+  const unread = visibleActivity([newer], read, EMPTY_ACTIVITY_FILTERS);
+  const restored = await dismissals.undoActivityItems([entry]);
+
+  expect(unread.map(({ fingerprint }) => fingerprint)).toEqual([newer.fingerprint]);
+  expect(visibleActivity([entry], restored, EMPTY_ACTIVITY_FILTERS)).toEqual([entry]);
+});
+
+test("a failed panel navigation leaves the entry unread", async () => {
+  const dismissals = await import("../src/activity-dismissals");
+  const [entry] = items("core:read");
+
+  await expect(openActivityItem(entry, {
+    openPanel: () => { throw new Error("navigation failed"); },
+    markRead: dismissals.dismissActivityItems,
+  })).rejects.toThrow("navigation failed");
+
+  expect(await dismissals.loadActivityDismissals()).toEqual({});
+});
+
+test("a failed read-state save still opens the panel and leaves the entry unread", async () => {
+  const dismissals = await import("../src/activity-dismissals");
+  const [entry] = items("core:read");
+  const opened: string[] = [];
+  storage.failWrite = true;
+
+  await expect(openActivityItem(entry, {
+    openPanel: (key) => opened.push(key),
+    markRead: dismissals.dismissActivityItems,
+  })).rejects.toThrow("write failed");
+
+  expect(opened).toEqual([entry.session.key]);
+  expect(visibleActivity([entry], await dismissals.loadActivityDismissals(), EMPTY_ACTIVITY_FILTERS)).toEqual([entry]);
+});
 
 test("dismissal fingerprints persist across module reloads", async () => {
   const dismissals = await import("../src/activity-dismissals");

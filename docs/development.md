@@ -133,6 +133,18 @@ outside, tap Close or press platform Back to fold the menu. Search and New
 are disabled while disconnected; Activity remains available. The expanded
 menu blocks underlying list interactions and provides screen-reader buttons.
 
+## Activity as an inbox
+
+Activity lists unread events. Tap an entry to open its panel and mark that
+exact event as read. Return to Activity to continue with the remaining
+entries. Read entries stay cleared across navigation and app restarts;
+**Undo** restores the last cleared entry or batch.
+
+A newer event from the same session appears again, even if you are still
+viewing its panel. Opening an entry never stops, hides from Spaces or deletes
+the underlying session. If saving read state fails, the panel still opens,
+but the entry remains unread and Activity offers Retry save.
+
 ## Activity filters
 
 Open **Activity → Filters → Type** to choose All types, Waiting for input,
