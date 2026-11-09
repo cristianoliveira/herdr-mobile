@@ -5,7 +5,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Clipboard from "expo-clipboard";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { utf8Encode } from "../hc/bytes";
 import { HcError, type HcConnection } from "../hc/connection";
@@ -15,6 +15,8 @@ import { KEY_BAR, keyBytes } from "./keys";
 import type { TerminalHandle } from "./TerminalView";
 import { enterSends, SEND_DELAY_MS, withoutTypedNewline, type Change } from "./composer";
 import { typedText, withCtrl } from "./typing";
+import { SnippetsSheet } from "./SnippetsSheet";
+import { appendSnippet } from "./snippets";
 
 export type TerminalInputHandle = { openKeyboard(): void };
 
@@ -35,6 +37,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
   const [ctrl, setCtrl] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [snippetsOpen, setSnippetsOpen] = useState(false);
   const capture = useRef<TextInput>(null);
   const mirror = useRef("");
   const latest = useRef("");
@@ -63,6 +66,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
     cancelPendingSend();
     changeText("");
     lastChange.current = null;
+    setSnippetsOpen(false);
     setCtrl(false);
     resetMirror();
   }, [sessionKey]);
@@ -176,6 +180,24 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
     if (next === "direct") setTimeout(openKeyboard, 80);
   };
 
+  const openSnippets = () => {
+    if (sending) return;
+    cancelPendingSend();
+    lastChange.current = null;
+    setCtrl(false);
+    resetMirror();
+    Keyboard.dismiss();
+    setSnippetsOpen(true);
+  };
+
+  const insertSnippet = (body: string) => {
+    cancelPendingSend();
+    lastChange.current = null;
+    changeText(appendSnippet(latest.current, body));
+    void updateSettings({ inputMode: "message" }).catch(fail);
+    setSnippetsOpen(false);
+  };
+
   const bottom = keyboardHeight ? 0 : insets.bottom;
 
   return (
@@ -183,6 +205,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
       <ScrollView horizontal style={styles.keybar} contentContainerStyle={styles.keybarContent} keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false}>
         <Key label="" icon={message ? "keypad-outline" : "chatbox-outline"} accessibilityLabel={message ? "Type directly" : "Write a message"} onPress={() => setMode(message ? "direct" : "message")} />
         {!message && keyboardHeight === 0 && <Key label="keyboard" onPress={openKeyboard} />}
+        <Key label="Snippets" onPress={openSnippets} />
         <Key label="ctrl" active={ctrl} onPress={() => setCtrl((c) => !c)} />
         {KEY_BAR.map((k) => (
           <Key key={k.label} label={k.label} onPress={() => pressKey(k.key)} />
@@ -226,6 +249,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
           />
         </View>
       )}
+      {snippetsOpen && <SnippetsSheet draft={text} onInsert={insertSnippet} onClose={() => setSnippetsOpen(false)} />}
     </>
   );
 });
@@ -247,7 +271,7 @@ function Key({ label, icon, onPress, active, accessibilityLabel }: { label: stri
 const styles = StyleSheet.create({
   keybar: { flexGrow: 0, backgroundColor: colors.surface, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   keybarContent: { padding: space.sm - 2, gap: space.sm - 2 },
-  key: { minWidth: 40, paddingHorizontal: space.md - 2, height: 36, borderRadius: radius.sm, backgroundColor: colors.surfaceHigh, alignItems: "center", justifyContent: "center" },
+  key: { minWidth: 48, paddingHorizontal: space.md - 2, height: 48, borderRadius: radius.sm, backgroundColor: colors.surfaceHigh, alignItems: "center", justifyContent: "center" },
   keyActive: { backgroundColor: colors.accent },
   keyPressed: { backgroundColor: colors.border },
   keyText: { color: colors.text, fontSize: 15, fontFamily: fonts.mono },
