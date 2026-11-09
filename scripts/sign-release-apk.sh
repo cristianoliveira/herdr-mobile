@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sign a Gradle release APK with a persistent key; never fall back to debug signing.
+# Sign and verify using the supplied key. The alpha wrapper supplies Expo's public test key.
 set -euo pipefail
 
 if [[ $# != 2 ]]; then
@@ -9,7 +9,7 @@ fi
 
 for name in ANDROID_HOME ANDROID_KEYSTORE_FILE ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
   if [[ -z "${!name:-}" ]]; then
-    printf 'Missing %s. Configure signing secrets as described in docs/releasing.md.\n' "$name" >&2
+    printf 'Missing %s. For test builds use bash scripts/sign-alpha-apk.sh INPUT.apk OUTPUT.apk; see docs/releasing.md.\n' "$name" >&2
     exit 1
   fi
 done

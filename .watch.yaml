@@ -14,6 +14,7 @@ on:
     - "scripts/**/*"
     - "Justfile"
     - "app.json"
+    - "app.config.js"
     - "eas.json"
     - "package.json"
     - "pnpm-lock.yaml"

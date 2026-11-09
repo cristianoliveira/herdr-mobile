@@ -49,8 +49,10 @@ that reaches SSH works.
 
 ## Install
 
-**Android:** there is no public APK download yet. To build one, see
-[Build an APK](docs/releasing.md#build-an-apk).
+**Android alpha:** run **Actions → Android alpha release → Run workflow** on
+GitHub, then download the APK from the resulting prerelease's Assets. No signing
+secrets or Expo account are needed. **Herdr Alpha** installs alongside regular
+Herdr. See [Releasing](docs/releasing.md) for steps and test-signing limits.
 
 **iOS:** build the app on a Mac with Xcode and install it on your own iPhone:
 
@@ -80,9 +82,10 @@ directly, each terminal is listed once and the direct connection is used.
 
 ## Updates
 
-On Android, the app downloads updates when it starts or comes back to the
-foreground, then offers Restart on the Spaces screen. Settings shows which
-version is running and can check for updates.
+On Android preview builds, the app downloads updates when it starts or comes
+back to the foreground, then offers Restart on the Spaces screen. Settings shows
+which version is running and can check for updates. **Herdr Alpha** does not load
+OTA updates; install the next alpha APK to update it.
 
 On iOS, build and install the app again to update it.
 
