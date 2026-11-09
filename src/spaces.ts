@@ -29,6 +29,9 @@ function rank(state: string | undefined): number {
   }
 }
 
+/** Blocked, failed, or finished its turn: the next move is yours. */
+export const needsYou = (s: Session) => rank(s.terminal.status?.state) <= 1;
+
 const changed = (s: Session) => s.terminal.status_ms ?? s.terminal.created_ms;
 
 export function byUrgency(a: Session, b: Session): number {
