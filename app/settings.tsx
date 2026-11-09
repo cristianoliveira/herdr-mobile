@@ -15,7 +15,7 @@ export default function SettingsScreen() {
   const { links } = useFleet();
   const up = links.filter((l) => l.state === "connected").length;
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Section>
         <Row
           label="Machines"
@@ -75,8 +75,9 @@ function ProjectSettings() {
     const next = value.trim();
     const invalid = projectPathError(next);
     setError(invalid);
-    if (invalid) return;
+    if (invalid) return false;
     void save([...s.projectPaths, next]);
+    return true;
   };
   return (
     <Section title="Projects">
@@ -90,12 +91,12 @@ function ProjectSettings() {
       <Cell>
         <Text style={styles.smallText}>Add a path</Text>
         <View style={styles.presets}>
-          {["~/workspace", "~/other", "~/work"].filter((preset) => !s.projectPaths.includes(preset)).map((preset) => (
+          {["~/workspace", "~/projects", "~/code", "~/src"].filter((preset) => !s.projectPaths.includes(preset)).map((preset) => (
             <Small key={preset} label={`+ ${preset}`} onPress={() => add(preset)} disabled={saving} />
           ))}
         </View>
-        <TextField accessibilityLabel="Custom project path" value={path} onChangeText={setPath} placeholder="~/projects or /srv/projects" autoCorrect={false} spellCheck={false} invalid={!!error} editable={!saving} inset />
-        <Small label={saving ? "Saving…" : "Add custom path"} onPress={() => add(path)} disabled={saving || s.projectPaths.includes(path.trim())} />
+        <TextField accessibilityLabel="Custom project path" value={path} onChangeText={setPath} onSubmitEditing={() => { if (add(path)) setPath(""); }} returnKeyType="done" placeholder="~/repos or /srv/projects" autoCorrect={false} spellCheck={false} invalid={!!error} editable={!saving} inset />
+        <Small label={saving ? "Saving…" : "Add custom path"} onPress={() => { if (add(path)) setPath(""); }} disabled={saving || s.projectPaths.includes(path.trim())} />
         {error && <Text accessibilityRole="alert" style={styles.smallText}>{error}</Text>}
       </Cell>
       <Cell>

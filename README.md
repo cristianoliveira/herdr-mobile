@@ -22,8 +22,9 @@ that reaches SSH works.
   Message mode is for prose to agents: Enter sends it, and hc pastes it and
   presses Enter.
 - **Start agents:** a space's + then Pi or Claude starts it in that space's
-  folder, as a new tab there. The round + opens a project from `~/workspace`:
-  a new space with nvim, deltoids, gob and Pi, like the desktop app's
+  folder, as a new tab there. The round + opens a project from your project
+  paths (`~/workspace/<owner>/<repo>` unless you change them in Settings →
+  Projects): a new space with nvim, deltoids, gob and Pi, like the desktop app's
   new-space, or a new Pi in the project's space when it has one.
 - **Manage:** interrupt, copy output, kill.
 
