@@ -128,6 +128,19 @@ test("starts sessions anywhere it reaches, nests children, and keeps finished on
   await until(() => !again.snapshot().sessions.some((x) => x.key === key));
 }, 40_000);
 
+test("closing a kept agent ends it and removes it", async () => {
+  const fleet = new Fleet(open);
+  fleets.push(fleet);
+  fleet.setMachines([A]);
+  const b = await until(() => fleet.targets().find((x) => x.on === "b"));
+  const key = await fleet.run(b, { argv: AGENT, name: "to-close", keep: true });
+  await until(() => fleet.snapshot().sessions.find((x) => x.key === key && x.terminal.status));
+
+  await fleet.close(key);
+  await until(() => !fleet.snapshot().sessions.some((x) => x.key === key));
+  expect(hc("hmb", "ls", "--all", "--json")).not.toContain("to-close");
+}, 30_000);
+
 test("a line that went silent while the phone slept is noticed and replaced", async () => {
   let blackHole = false;
   let opened = 0;

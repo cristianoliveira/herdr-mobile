@@ -11,6 +11,7 @@ import { Dot } from "../src/ui/Dot";
 import { explainError, linkColor } from "../src/ui/machine-display";
 import { NewSessionSheet } from "../src/ui/NewSessionSheet";
 import { ProjectSheet } from "../src/ui/ProjectSheet";
+import { SessionActions } from "../src/ui/SessionActions";
 import { SpaceSearchSheet } from "../src/ui/SpaceSearchSheet";
 import { updateSettings, useSettings } from "../src/settings";
 import { InboxList, SpaceList } from "../src/ui/SpaceList";
@@ -24,6 +25,7 @@ export default function Agents() {
   const [searching, setSearching] = useState(false);
   const { inbox } = useSettings();
   const [startIn, setStartIn] = useState<Space | null>(null);
+  const [actionsFor, setActionsFor] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const { isUpdatePending } = useUpdates();
   const [, tick] = useState(0);
@@ -100,8 +102,8 @@ export default function Agents() {
         )}
 
         {inbox
-          ? <InboxList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} />
-          : <SpaceList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onStart={setStartIn} />}
+          ? <InboxList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onActions={(s) => setActionsFor(s.key)} />
+          : <SpaceList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onActions={(s) => setActionsFor(s.key)} onStart={setStartIn} />}
 
         {inbox && machines.length > 0 && connected && !waiting && (
           <View style={styles.empty}>
@@ -141,6 +143,7 @@ export default function Agents() {
       )}
       <NewSessionSheet space={startIn} onClose={() => setStartIn(null)} />
       <ProjectSheet visible={picking} spaces={spaces} onClose={() => setPicking(false)} />
+      <SessionActions session={sessions.find((s) => s.key === actionsFor) ?? null} onClose={() => setActionsFor(null)} />
       </View>
       <SpaceSearchSheet visible={searching} spaces={spaces} loose={loose} showMachine={targets.length > 1} onClose={() => setSearching(false)} onSelect={(session) => { setSearching(false); open(session); }} />
     </View>

@@ -60,6 +60,27 @@ export function SessionActions({ session, onClose, children }: { session: Sessio
               await Clipboard.setStringAsync(text + "\n");
             })}
           />
+          {live && (
+            <SheetAction
+              label="Close"
+              detail="End it and remove it from the list"
+              danger
+              onPress={run(() =>
+                Alert.alert(`Close ${agentTitle(session)}?`, "Its program ends and the session goes away. This cannot be undone.", [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Close",
+                    style: "destructive",
+                    onPress: () =>
+                      void fleet.close(session.key).then(
+                        () => router.canGoBack() && router.back(),
+                        (e) => Alert.alert("It did not work", e instanceof Error ? e.message : String(e)),
+                      ),
+                  },
+                ]),
+              )}
+            />
+          )}
           {live ? (
             <SheetAction
               label="Kill"

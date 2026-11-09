@@ -387,6 +387,14 @@ export class Fleet {
     return `${target.coreId}:${local}`;
   }
 
+  /** End a session's program, if it still runs, and remove it from the core. */
+  async close(key: string): Promise<void> {
+    const route = this.route(key);
+    if (!route) throw new Error("This session's machine is not connected");
+    if (route.session.terminal.state === "live") await route.conn.call("terminal.kill", { terminal: route.address });
+    await route.conn.call("terminal.rm", { terminal: route.address });
+  }
+
   /** Run a short command on a machine, without a terminal. */
   async exec(target: Target, argv: string[], cwd?: string): Promise<ExecOutput> {
     const conn = this.links.get(target.linkId)?.conn;

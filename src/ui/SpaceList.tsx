@@ -11,10 +11,12 @@ type Props = {
   loose: Session[];
   showMachine: boolean;
   onSelect: (s: Session) => void;
+  /** A long press: the session's actions. */
+  onActions?: (s: Session) => void;
   onStart?: (space: Space) => void;
 };
 
-export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Props) {
+export function SpaceList({ spaces, loose, showMachine, onSelect, onActions, onStart }: Props) {
   return (
     <View>
       {spaces.map((sp) => (
@@ -41,7 +43,7 @@ export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Pro
             </Pressable>}
           </View>
           {sp.agents.map((s) => (
-            <AgentRow key={s.key} session={s} sub={s.parentKey !== null && sp.agents.some((x) => x.key === s.parentKey)} onPress={() => onSelect(s)} />
+            <AgentRow key={s.key} session={s} sub={s.parentKey !== null && sp.agents.some((x) => x.key === s.parentKey)} onPress={() => onSelect(s)} onLongPress={onActions && (() => onActions(s))} />
           ))}
         </View>
       ))}
@@ -51,7 +53,7 @@ export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Pro
             <Text style={[styles.name, styles.dim]}>Not in a space</Text>
           </View>
           {loose.map((s) => (
-            <AgentRow key={s.key} session={s} sub={false} onPress={() => onSelect(s)} />
+            <AgentRow key={s.key} session={s} sub={false} onPress={() => onSelect(s)} onLongPress={onActions && (() => onActions(s))} />
           ))}
         </View>
       )}
@@ -60,7 +62,7 @@ export function SpaceList({ spaces, loose, showMachine, onSelect, onStart }: Pro
 }
 
 /** The agents that need you, most urgent first, each with the space it belongs to. */
-export function InboxList({ spaces, loose, showMachine, onSelect }: Omit<Props, "onStart">) {
+export function InboxList({ spaces, loose, showMachine, onSelect, onActions }: Omit<Props, "onStart">) {
   const rows = [
     ...spaces.flatMap((sp) => sp.agents.map((session) => ({ session, place: showMachine ? `${sp.name} · ${sp.target.label}` : sp.name }))),
     ...loose.map((session) => ({ session, place: showMachine ? `Not in a space · ${session.machine}` : "Not in a space" })),
@@ -68,19 +70,25 @@ export function InboxList({ spaces, loose, showMachine, onSelect }: Omit<Props, 
   return (
     <View>
       {rows.map(({ session, place }) => (
-        <AgentRow key={session.key} session={session} sub={false} place={place} onPress={() => onSelect(session)} />
+        <AgentRow key={session.key} session={session} sub={false} place={place} onPress={() => onSelect(session)} onLongPress={onActions && (() => onActions(session))} />
       ))}
     </View>
   );
 }
 
-function AgentRow({ session, sub, place, onPress }: { session: Session; sub: boolean; place?: string; onPress: () => void }) {
+function AgentRow({ session, sub, place, onPress, onLongPress }: { session: Session; sub: boolean; place?: string; onPress: () => void; onLongPress?: () => void }) {
   const t = session.terminal;
   const title = agentTitle(session);
   const msg = t.status?.msg && !title.includes(t.status.msg) ? t.status.msg : null;
   const blocked = t.status?.state === "blocked" || t.status?.state === "error";
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.row, sub && styles.child, pressed && styles.rowPressed]}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      accessibilityRole="button"
+      accessibilityActions={onLongPress && [{ name: "longpress", label: "Actions" }]}
+      onAccessibilityAction={(e) => e.nativeEvent.actionName === "longpress" && onLongPress?.()}
+      style={({ pressed }) => [styles.row, sub && styles.child, pressed && styles.rowPressed]}>
       <View style={styles.indicator}>
         <StatusDot session={session} size={10} spin />
       </View>

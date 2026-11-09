@@ -29,7 +29,9 @@ that reaches SSH works.
   paths (`~/workspace/<owner>/<repo>` unless you change them in Settings →
   Projects): a new space with nvim, deltoids, gob and Pi, like the desktop app's
   new-space, or a new Pi in the project's space when it has one.
-- **Manage:** interrupt, copy output, kill.
+- **Manage:** interrupt, copy output, kill, or close an agent (kill it and
+  remove it from the list). Long press an agent in Spaces or the Inbox for
+  the same actions.
 
 ## Requirements
 
