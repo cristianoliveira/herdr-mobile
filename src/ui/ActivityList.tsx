@@ -2,20 +2,21 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Alert, Animated, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { ActivityFilters, ActivityItem } from "../activity";
-import { activityFilterOptions, activitySelectionId, filterActivity, pruneActivitySelection, shouldCaptureDismissSwipe, shouldRevealDismiss, visibleActivity } from "../activity";
+import { ACTIVITY_KIND_LABELS as labels, activityFilterOptions, activitySelectionId, filterActivity, pruneActivitySelection, shouldCaptureDismissSwipe, shouldRevealDismiss, visibleActivity } from "../activity";
 import { Dot } from "./Dot";
 import { ago, agentTitle, shortPath } from "./session-display";
 import { Sheet } from "./Sheet";
 import { colors, fonts, radius, space as gap } from "./theme";
 
-const labels = { waiting: "Waiting for input", error: "Error", completed: "Completed", working: "Working", idle: "Idle", unknown: "Status unknown" } as const;
 type Panel = "filters" | "menu" | null;
-type FilterPage = "root" | "machine" | "space";
+type FilterPage = "root" | "machine" | "space" | "kind";
 
-export function ActivityList({ items, dismissed, filters, onFiltersChange, onDismiss, onDismissMany, onUndo, undoItems, dismissEnabled, panel, onPanelChange, showMachine, bottomInset, onSelect, menuActions }: {
+export function ActivityList({ items, dismissed, filters, onFiltersChange, onDismiss, onDismissMany, onUndo, undoItems, dismissEnabled, panel, onPanelChange, showMachine, bottomInset, onSelect, menuActions, filtersSaving, filterError }: {
   items: ActivityItem[];
   dismissed: Record<string, string>;
   filters: ActivityFilters;
+  filtersSaving: boolean;
+  filterError: string | null;
   onFiltersChange: (filters: ActivityFilters) => void;
   onDismiss: (item: ActivityItem) => void;
   onDismissMany: (items: ActivityItem[]) => void;
@@ -57,9 +58,11 @@ export function ActivityList({ items, dismissed, filters, onFiltersChange, onDis
     const id = activitySelectionId(item);
     return current.includes(id) ? current.filter((candidate) => candidate !== id) : [...current, id];
   });
-  const pickerOptions = filterPage === "machine" ? options.machines : options.spaces;
+  const pickerOptions = filterPage === "machine" ? options.machines : filterPage === "space" ? options.spaces
+    : Object.entries(labels).map(([key, label]) => ({ key, label }));
   const selectedMachine = options.machines.find(({ key }) => key === filters.machine)?.label ?? (filters.machine ? "Unavailable" : "All machines");
   const selectedSpace = options.spaces.find(({ key }) => key === filters.space)?.label ?? (filters.space ? "Unavailable" : "All spaces");
+  const selectedKind = filters.kind ? labels[filters.kind] : "All types";
 
   return <View style={styles.container}>
     <ScrollView style={styles.scroll} contentContainerStyle={[styles.listContent, { paddingBottom: bottomInset + gap.sm }]}>
@@ -90,14 +93,16 @@ export function ActivityList({ items, dismissed, filters, onFiltersChange, onDis
 
     <Sheet visible={panel !== null} onClose={() => onPanelChange(null)}>
       {panel === "filters" ? <>
+        {filterError && <Text accessibilityRole="alert" style={[styles.sheetTitle, styles.danger]}>{filterError}</Text>}
         {filterPage !== "root" && <Pressable onPress={() => setFilterPage("root")} accessibilityRole="button" style={styles.sheetHeading}><Ionicons name="chevron-back" size={18} color={colors.text} /><Text style={styles.sheetTitle}>Filters</Text></Pressable>}
         {filterPage === "root" ? <>
           <Text style={styles.sheetTitle}>Activity filters</Text>
-          <Pressable onPress={() => setFilterPage("machine")} accessibilityRole="button" style={styles.sheetOption}><Text style={styles.sheetLabel}>Machine</Text><Text style={styles.sheetValue}>{selectedMachine} ›</Text></Pressable>
-          <Pressable onPress={() => setFilterPage("space")} accessibilityRole="button" style={styles.sheetOption}><Text style={styles.sheetLabel}>Space</Text><Text style={styles.sheetValue}>{selectedSpace} ›</Text></Pressable>
+          <Pressable disabled={filtersSaving} accessibilityRole="button" onPress={() => setFilterPage("machine")} style={styles.sheetOption}><Text style={styles.sheetLabel}>Machine</Text><Text style={styles.sheetValue}>{selectedMachine} ›</Text></Pressable>
+          <Pressable disabled={filtersSaving} accessibilityRole="button" onPress={() => setFilterPage("space")} style={styles.sheetOption}><Text style={styles.sheetLabel}>Space</Text><Text style={styles.sheetValue}>{selectedSpace} ›</Text></Pressable>
+          <Pressable disabled={filtersSaving} accessibilityRole="button" onPress={() => setFilterPage("kind")} style={styles.sheetOption}><Text style={styles.sheetLabel}>Type</Text><Text style={styles.sheetValue}>{selectedKind} ›</Text></Pressable>
         </> : <ScrollView keyboardShouldPersistTaps="handled">
-          {[{ key: "__all__", label: filterPage === "machine" ? "All machines" : "All spaces" }, ...pickerOptions].map(({ key, label }) => (
-            <Pressable key={key} accessibilityRole="button" onPress={() => {
+          {[{ key: "__all__", label: filterPage === "machine" ? "All machines" : filterPage === "space" ? "All spaces" : "All types" }, ...pickerOptions].map(({ key, label }) => (
+            <Pressable key={key} disabled={filtersSaving} accessibilityRole="button" accessibilityState={{ selected: filters[filterPage] === (key === "__all__" ? null : key) }} onPress={() => {
               setSelected([]);
               onFiltersChange({ ...filters, [filterPage]: key === "__all__" ? null : key });
               setFilterPage("root");
@@ -202,7 +207,7 @@ function ActivityRow({ item, selected, selecting, dismissEnabled, showMachine, o
 function scopeDescription(filters: ActivityFilters, options: ReturnType<typeof activityFilterOptions>): string {
   const machine = options.machines.find(({ key }) => key === filters.machine)?.label ?? "unavailable machine";
   const scope = options.spaces.find(({ key }) => key === filters.space)?.label ?? "unavailable space";
-  const parts = [filters.machine && ` on ${machine}`, filters.space && (filters.space === "__none__" ? " not in a space" : ` in ${scope}`)].filter(Boolean);
+  const parts = [filters.kind && ` of type ${labels[filters.kind]}`, filters.machine && ` on ${machine}`, filters.space && (filters.space === "__none__" ? " not in a space" : ` in ${scope}`)].filter(Boolean);
   return parts.join("");
 }
 

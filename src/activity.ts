@@ -19,8 +19,10 @@ export type ActivityItem = {
   space?: Space;
 };
 
-export type ActivityFilters = { machine: string | null; space: string | null };
-export const EMPTY_ACTIVITY_FILTERS: ActivityFilters = { machine: null, space: null };
+export const ACTIVITY_KIND_LABELS = { waiting: "Waiting for input", error: "Error", completed: "Completed", working: "Working", idle: "Idle", unknown: "Status unknown" } satisfies Record<ActivityKind, string>;
+
+export type ActivityFilters = { machine: string | null; space: string | null; kind: ActivityKind | null };
+export const EMPTY_ACTIVITY_FILTERS: ActivityFilters = { machine: null, space: null, kind: null };
 
 export function activityFingerprint(session: Session): string {
   const terminal = session.terminal;
@@ -32,9 +34,10 @@ export function activityFingerprint(session: Session): string {
 }
 
 export function filterActivity(items: ActivityItem[], filters: ActivityFilters): ActivityItem[] {
-  return items.filter(({ session, space }) =>
+  return items.filter(({ session, space, kind }) =>
     (!filters.machine || coreOf(session.key) === filters.machine)
-    && (!filters.space || (filters.space === "__none__" ? !space : space?.key === filters.space)));
+    && (!filters.space || (filters.space === "__none__" ? !space : space?.key === filters.space))
+    && (!filters.kind || kind === filters.kind));
 }
 
 export function visibleActivity(items: ActivityItem[], dismissed: Record<string, string>, filters: ActivityFilters): ActivityItem[] {
