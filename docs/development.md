@@ -121,6 +121,18 @@ Choose **Direct folders** for `<path>/<repo>`, or **Owner / repo** for
 layout persist across app restarts. The default remains `~/workspace` with
 owner/repo grouping. Directories are not created automatically.
 
+## Corner action menu
+
+The round **Menu** button in the bottom-right corner replaces the separate
+Search, New and Activity controls on Spaces. Tap to unfold three text-only
+round buttons, then tap an action. Or hold the Menu button, slide toward an
+action and release to select it. The current target is highlighted.
+
+Slide back to the center or release outside the buttons to cancel. Tap
+outside, tap Close or press platform Back to fold the menu. Search and New
+are disabled while disconnected; Activity remains available. The expanded
+menu blocks underlying list interactions and provides screen-reader buttons.
+
 ## Activity filters
 
 Open **Activity → Filters → Type** to choose All types, Waiting for input,
