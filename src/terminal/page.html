@@ -66,6 +66,7 @@
   var touchLinkDispatch = false;
   var touchLinkActivated = false;
   var lastTouchLink = null;
+  var collectingLinks = null;
   var appCursor = false;
   var bracketed = false;
 
@@ -83,11 +84,21 @@
     return /^https?:\/\//i.test(url);
   }
 
-  term.options.linkHandler = {
-    activate: function (event, uri) {
-      if (isHttpUrl(uri)) activateLink(event, uri);
-    },
-  };
+  function collectLink(url) {
+    if (collectingLinks && isHttpUrl(url) && collectingLinks.indexOf(url) === -1 && collectingLinks.length < 8) {
+      collectingLinks.push(url);
+    }
+  }
+
+  function installLinkHandler() {
+    term.options.linkHandler = {
+      activate: function (event, uri) {
+        if (isHttpUrl(uri)) activateLink(event, uri);
+      },
+      hover: function (_event, uri) { collectLink(uri); },
+    };
+  }
+  installLinkHandler();
 
   function textAndColumns(line) {
     var text = "", columns = [];
@@ -138,14 +149,54 @@
           start: { x: startColumn, y: startSegment.line },
           end: { x: endColumn, y: endSegment.line },
         },
-        text: url,
-        activate: function (event) { activateLink(event, url); },
+                  text: url,
+          activate: function (event) { activateLink(event, url); },
+          hover: function () { collectLink(url); },
+
       });
     }
     callback(links.length ? links : undefined);
   }
 
-  term.registerLinkProvider({ provideLinks: provideLinks });
+  var linkProviderRegistration = null;
+  function installLinkProvider() {
+    linkProviderRegistration?.dispose();
+    linkProviderRegistration = term.registerLinkProvider({ provideLinks: provideLinks });
+  }
+  installLinkProvider();
+
+  function visibleLinks() {
+    var screen = el.querySelector(".xterm-screen");
+    if (!screen) return [];
+    var rect = screen.getBoundingClientRect();
+    if (!rect.width || !rect.height || !term.cols || !term.rows) return [];
+    var cellWidth = rect.width / term.cols, cellHeight = rect.height / term.rows;
+    var buffer = term.buffer.active;
+    collectingLinks = null;
+    var resetRow = Math.max(0, Math.min(term.rows, buffer.length - buffer.viewportY) - 1);
+    screen.dispatchEvent(new MouseEvent("mousemove", {
+      bubbles: true,
+      clientX: rect.left + cellWidth / 2,
+      clientY: rect.top + (resetRow + 0.5) * cellHeight,
+    }));
+    screen.dispatchEvent(new MouseEvent("mouseleave"));
+    collectingLinks = [];
+    for (var row = 0; row < term.rows && collectingLinks.length < 8; row++) {
+      var line = buffer.getLine(buffer.viewportY + row);
+      if (!line || !line.translateToString(true)) continue;
+      for (var column = 0; column < term.cols && collectingLinks.length < 8; column++) {
+        screen.dispatchEvent(new MouseEvent("mousemove", {
+          bubbles: true,
+          clientX: rect.left + (column + 0.5) * cellWidth,
+          clientY: rect.top + (row + 0.5) * cellHeight,
+        }));
+      }
+    }
+    var urls = collectingLinks;
+    collectingLinks = null;
+    screen.dispatchEvent(new MouseEvent("mouseleave"));
+    return urls;
+  }
 
   function checkModes() {
     var cur = !!(term.modes && term.modes.applicationCursorKeysMode);
@@ -168,6 +219,8 @@
   function dispatchTouchMouse(touchPoint) {
     var screen = el.querySelector(".xterm-screen");
     if (!screen) return false;
+    var rect = screen.getBoundingClientRect();
+    if (!rect.width || !rect.height || !term.cols || !term.rows) return false;
     var options = {
       bubbles: true,
       cancelable: true,
@@ -175,9 +228,17 @@
       clientY: touchPoint.y,
       button: 0,
     };
+    var cellHeight = rect.height / term.rows;
+    var touchRow = Math.max(0, Math.min(term.rows - 1, Math.floor((touchPoint.y - rect.top) / cellHeight)));
+    var resetRow = touchRow === 0 ? term.rows - 1 : 0;
     touchLinkActivated = false;
     touchLinkDispatch = true;
     try {
+      screen.dispatchEvent(new MouseEvent("mousemove", {
+        bubbles: true,
+        clientX: rect.left + rect.width / term.cols / 2,
+        clientY: rect.top + (resetRow + 0.5) * cellHeight,
+      }));
       screen.dispatchEvent(new MouseEvent("mousemove", options));
       screen.dispatchEvent(new MouseEvent("mousedown", Object.assign({}, options, { buttons: 1 })));
       screen.dispatchEvent(new MouseEvent("mouseup", Object.assign({}, options, { buttons: 0 })));
@@ -328,6 +389,9 @@
         });
       } else if (msg.type === "reset") {
         term.reset();
+        term.refresh(0, term.rows - 1);
+        installLinkHandler();
+        installLinkProvider();
         mouseEncoding = "DEFAULT";
         checkModes();
       } else if (msg.type === "mode") {
@@ -342,6 +406,8 @@
         layout();
       } else if (msg.type === "bottom") {
         term.scrollToBottom();
+      } else if (msg.type === "listLinks" && typeof msg.id === "string") {
+        post({ type: "links", id: msg.id, urls: visibleLinks() });
       }
     },
   };

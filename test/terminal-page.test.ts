@@ -27,7 +27,7 @@ describe("terminal page links", () => {
     links[0].activate(clickEvent()); // A later WebView-synthesized click must not duplicate the native action.
     vi.runAllTimers();
 
-    expect(harness.mouseEvents).toEqual(["mousemove", "mousedown", "mouseup"]);
+    expect(harness.mouseEvents).toEqual(["mousemove", "mousemove", "mousedown", "mouseup"]);
     expect(harness.messages).toEqual([
       { type: "ready" },
       { type: "link", url: "https://example.com/path" },
@@ -49,6 +49,36 @@ describe("terminal page links", () => {
       { type: "ready" },
       { type: "link", url: "https://example.com" },
     ]);
+  });
+
+  test("lists only unique HTTP(S) links inside the current viewport", () => {
+    const harness = createPageHarness();
+    harness.setBuffer([
+      makeLine("https://scrolled-off.example"),
+      makeLine("https://visible.example/a https://visible.example/b"),
+      makeLine("https://visible.example/a"),
+    ], 1);
+    harness.oscLink = { url: "https://docs.example/real-target", row: 2, start: 1, end: 4 };
+
+    harness.requestLinks("list-1");
+
+    expect(harness.messages.at(-1)).toEqual({
+      type: "links",
+      id: "list-1",
+      urls: [
+        "https://docs.example/real-target",
+        "https://visible.example/a",
+        "https://visible.example/b",
+      ],
+    });
+  });
+
+  test("returns an empty list when the viewport has no links", () => {
+    const harness = createPageHarness();
+
+    harness.requestLinks("empty");
+
+    expect(harness.messages.at(-1)).toEqual({ type: "links", id: "empty", urls: [] });
   });
 
   test("maps wide and combining characters to terminal columns", () => {
@@ -75,6 +105,20 @@ describe("terminal page links", () => {
 
     harness.linkHandler.activate(clickEvent(), "javascript:alert(1)");
     expect(harness.messages).toHaveLength(2);
+  });
+
+  test("reinstalls the OSC 8 handler after xterm resets", () => {
+    const harness = createPageHarness();
+    harness.reset();
+    harness.oscLink = { url: "https://docs.example/guide", row: 1, start: 1, end: 4 };
+
+    touch(harness, "touchstart", { touches: [{ clientX: 15, clientY: 10 }] });
+    touch(harness, "touchend", { stopPropagation() {} });
+
+    expect(harness.messages).toEqual([
+      { type: "ready" },
+      { type: "link", url: "https://docs.example/guide" },
+    ]);
   });
 
   test("a non-link tap still requests the keyboard", () => {
@@ -135,7 +179,7 @@ function createPageHarness() {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 480 }),
     dispatchEvent(event: any) {
       mouseEvents.push(event.type);
-      const row = Math.floor(event.clientY / 20) + 1;
+      const row = buffer.viewportY + Math.floor(event.clientY / 20) + 1;
       const column = Math.floor(event.clientX / 10) + 1;
       if (event.type === "mousemove") {
         currentLink = undefined;
@@ -143,8 +187,12 @@ function createPageHarness() {
           currentLink = links?.find((link) => contains(link.range, row, column));
         });
         if (oscLink && oscLink.row === row && column >= oscLink.start && column <= oscLink.end) {
-          currentLink = { activate: (mouseEvent: unknown) => linkHandler.activate(mouseEvent, oscLink!.url) };
+          currentLink = {
+            activate: (mouseEvent: unknown) => linkHandler.activate(mouseEvent, oscLink!.url),
+            hover: (mouseEvent: unknown) => linkHandler.hover(mouseEvent, oscLink!.url),
+          };
         }
+        currentLink?.hover?.(event, currentLink.text);
       } else if (event.type === "mousedown") {
         pressedLink = currentLink;
       } else if (event.type === "mouseup" && currentLink && pressedLink === currentLink) {
@@ -157,11 +205,18 @@ function createPageHarness() {
   const terminal: any = {
     options: {},
     modes: {},
+    cols: 80,
+    rows: 24,
     buffer: { get active() { return buffer; } },
     parser: { registerCsiHandler() {} },
     loadAddon() {},
     open() {},
-    registerLinkProvider(value: unknown) { provider = value; },
+    reset() { linkHandler = null; provider = null; },
+    refresh() {},
+    registerLinkProvider(value: unknown) {
+      provider = value;
+      return { dispose() { provider = null; } };
+    },
     write() {},
     scrollToBottom() {},
     resize() {},
@@ -171,6 +226,11 @@ function createPageHarness() {
     get: () => linkHandler,
     set: (value) => { linkHandler = value; },
   });
+
+  const windowObject: any = {
+    ReactNativeWebView: { postMessage: (message: string) => messages.push(JSON.parse(message)) },
+    addEventListener: (name: string, handler: (event: any) => void) => { touchHandlers[name] = handler; },
+  };
 
   runInNewContext(script!, {
     Terminal: function () { return terminal; },
@@ -183,10 +243,7 @@ function createPageHarness() {
       getElementById: () => root,
       body: { className: "" },
     },
-    window: {
-      ReactNativeWebView: { postMessage: (message: string) => messages.push(JSON.parse(message)) },
-      addEventListener: (name: string, handler: (event: any) => void) => { touchHandlers[name] = handler; },
-    },
+    window: windowObject,
     setTimeout,
     clearTimeout,
     setInterval,
@@ -198,7 +255,9 @@ function createPageHarness() {
   return {
     messages,
     mouseEvents,
-    setBuffer(lines: ReturnType<typeof makeLine>[]) { buffer = makeBuffer(lines); },
+    setBuffer(lines: ReturnType<typeof makeLine>[], viewportY = 0) { buffer = makeBuffer(lines, viewportY); },
+    requestLinks(id: string) { windowObject.hc.receive({ type: "listLinks", id }); },
+    reset() { windowObject.hc.receive({ type: "reset" }); },
     set oscLink(value: typeof oscLink) { oscLink = value; },
     get provider() { return provider; },
     get linkHandler() { return linkHandler; },
@@ -206,11 +265,15 @@ function createPageHarness() {
   };
 }
 
-function makeBuffer(lines: ReturnType<typeof makeLine>[]) {
+function makeBuffer(lines: ReturnType<typeof makeLine>[], viewportY = 0) {
+  const visibleLines = Array.from(
+    { length: Math.max(lines.length, viewportY + 24) },
+    (_, index) => lines[index] ?? makeLine(""),
+  );
   return {
-    length: lines.length,
-    viewportY: 0,
-    getLine: (zeroBasedIndex: number) => lines[zeroBasedIndex],
+    length: visibleLines.length,
+    viewportY,
+    getLine: (zeroBasedIndex: number) => visibleLines[zeroBasedIndex],
   };
 }
 
@@ -222,6 +285,7 @@ function makeLineCells(cells: [string, number][], isWrapped = false) {
   return {
     isWrapped,
     length: cells.reduce((total, [, width]) => total + width, 0),
+    translateToString: () => cells.map(([chars]) => chars).join(""),
     getCell(column: number) {
       let at = 0;
       for (const [chars, width] of cells) {

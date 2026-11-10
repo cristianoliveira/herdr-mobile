@@ -9,7 +9,12 @@ import type { AttachStream, HcConnection } from "../hc/connection";
 import { colors } from "../ui/theme";
 import { Sheet, SheetAction } from "../ui/Sheet";
 import { rememberFitSize } from "./fit";
-import { parseExternalLinkMessage } from "./links";
+import {
+  displayLinkTarget,
+  openExternalLink,
+  parseExternalLinkMessage,
+  parseVisibleLinksMessage,
+} from "./links";
 import { TERMINAL_HTML } from "./terminal-html.generated";
 
 export type TerminalMode = "fit" | "full";
@@ -37,6 +42,10 @@ export type TerminalHandle = {
   bracketedPaste: () => boolean;
   /** Back to the live screen, e.g. when typing after scrolling up. */
   scrollToBottom: () => void;
+  /** Currently visible HTTP(S) links, for the session action menu. */
+  listVisibleLinks: () => Promise<string[]>;
+  /** Open a link selected from the accessible session action menu. */
+  openExternalLink: (url: string) => void;
 };
 
 export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalView({ conn, address, cols, rows, pid, mode, fontSize, onTap, onSwipeBack }, ref) {
@@ -53,6 +62,12 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
   const appCursor = useRef(false);
   const bracketed = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nextLinkRequestId = useRef(0);
+  const pendingLinkRequest = useRef<{
+    id: string;
+    resolve: (urls: string[]) => void;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
 
   useImperativeHandle(ref, () => ({
     write: (bytes) => {
@@ -63,6 +78,22 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     appCursor: () => appCursor.current,
     bracketedPaste: () => bracketed.current,
     scrollToBottom: () => post({ type: "bottom" }),
+    listVisibleLinks: () => {
+      if (!ready) return Promise.resolve([]);
+      pendingLinkRequest.current?.resolve([]);
+      if (pendingLinkRequest.current) clearTimeout(pendingLinkRequest.current.timer);
+      const id = String(++nextLinkRequestId.current);
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          if (pendingLinkRequest.current?.id !== id) return;
+          pendingLinkRequest.current = null;
+          resolve([]);
+        }, 3000);
+        pendingLinkRequest.current = { id, resolve, timer: timeout };
+        post({ type: "listLinks", id });
+      });
+    },
+    openExternalLink: (candidate) => void launchLink(candidate),
   }));
 
   const post = (msg: object) =>
@@ -166,6 +197,13 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     else if (msg.type === "tap") onTap?.();
     else if (msg.type === "back") onSwipeBack?.();
     else if (msg.type === "link") void openLink(raw);
+    else if (msg.type === "links" && typeof msg.id === "string") {
+      const request = pendingLinkRequest.current;
+      if (!request || request.id !== msg.id) return;
+      clearTimeout(request.timer);
+      pendingLinkRequest.current = null;
+      request.resolve(parseVisibleLinksMessage(raw, msg.id) ?? []);
+    }
     else if (msg.type === "input" && typeof msg.data === "string") stream.current?.write(utf8Encode(msg.data));
     else if (msg.type === "size" && typeof msg.cols === "number" && typeof msg.rows === "number") {
       const size = { cols: msg.cols, rows: msg.rows };
@@ -182,11 +220,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
 
   const launchLink = async (url: string) => {
     setLinkError(false);
-    try {
-      await Linking.openURL(url);
-    } catch {
-      setLinkError(true);
-    }
+    await openExternalLink(url, Linking.openURL, () => setLinkError(true));
   };
 
   return (
@@ -208,7 +242,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
       <Sheet visible={linkToOpen !== null} onClose={() => setLinkToOpen(null)}>
         <SheetAction
           label="Open link in browser"
-          detail="This opens outside Herdr."
+          detail={linkToOpen ? displayLinkTarget(linkToOpen) : "This opens outside Herdr."}
           onPress={() => {
             const url = linkToOpen;
             setLinkToOpen(null);
