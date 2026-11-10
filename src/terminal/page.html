@@ -62,10 +62,142 @@
   }
 
   var mode = "view";
+  var pendingTap = null;
+  var touchLinkDispatch = false;
+  var touchLinkActivated = false;
+  var lastTouchLink = null;
+  var collectingLinks = null;
   var appCursor = false;
   var bracketed = false;
 
   // Report the cursor-key mode so the key bar sends the arrows the program expects.
+  function activateLink(event, url) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    if (touchLinkDispatch) touchLinkActivated = true;
+    if (lastTouchLink && lastTouchLink.url === url && Date.now() - lastTouchLink.time < 500) return;
+    lastTouchLink = { url: url, time: Date.now() };
+    if (pendingTap) { clearTimeout(pendingTap); pendingTap = null; }
+    post({ type: "link", url: url });
+  }
+
+  function isHttpUrl(url) {
+    return /^https?:\/\//i.test(url);
+  }
+
+  function collectLink(url) {
+    if (collectingLinks && isHttpUrl(url) && collectingLinks.indexOf(url) === -1 && collectingLinks.length < 8) {
+      collectingLinks.push(url);
+    }
+  }
+
+  function installLinkHandler() {
+    term.options.linkHandler = {
+      activate: function (event, uri) {
+        if (isHttpUrl(uri)) activateLink(event, uri);
+      },
+      hover: function (_event, uri) { collectLink(uri); },
+    };
+  }
+  installLinkHandler();
+
+  function textAndColumns(line) {
+    var text = "", columns = [];
+    for (var column = 0; column < line.length; column++) {
+      var cell = line.getCell(column);
+      if (!cell || cell.getWidth() <= 0) continue;
+      var chars = cell.getChars();
+      for (var i = 0; i < chars.length; i++) {
+        text += chars.charAt(i);
+        columns.push(column + 1);
+      }
+    }
+    var trimmed = text.replace(/\s+$/, "");
+    columns.length = trimmed.length;
+    return { text: trimmed, columns: columns };
+  }
+
+  function provideLinks(bufferLineNumber, callback) {
+    var buffer = term.buffer.active;
+    var first = bufferLineNumber;
+    while (first > 1 && buffer.getLine(first - 1).isWrapped) first--;
+    var last = first;
+    while (last < buffer.length && buffer.getLine(last).isWrapped) last++;
+
+    var text = "", segments = [];
+    for (var lineNumber = first; lineNumber <= last; lineNumber++) {
+      var line = buffer.getLine(lineNumber - 1);
+      if (!line) continue;
+      var chunk = textAndColumns(line);
+      segments.push({ line: lineNumber, start: text.length, length: chunk.text.length, columns: chunk.columns });
+      text += chunk.text;
+    }
+
+    var links = [], match;
+    var pattern = /https?:\/\/[^\s<>"'`]+/gi;
+    while ((match = pattern.exec(text))) {
+      let url = match[0].replace(/[.,;:!?)}\]]+$/, "");
+      if (!url) continue;
+      var start = match.index, end = start + url.length - 1;
+      var startSegment = segments.find(function (segment) { return start < segment.start + segment.length; });
+      var endSegment = segments.find(function (segment) { return end < segment.start + segment.length; });
+      if (!startSegment || !endSegment) continue;
+      if (bufferLineNumber < startSegment.line || bufferLineNumber > endSegment.line) continue;
+      var startColumn = startSegment.columns[start - startSegment.start];
+      var endColumn = endSegment.columns[end - endSegment.start];
+      links.push({
+        range: {
+          start: { x: startColumn, y: startSegment.line },
+          end: { x: endColumn, y: endSegment.line },
+        },
+                  text: url,
+          activate: function (event) { activateLink(event, url); },
+          hover: function () { collectLink(url); },
+
+      });
+    }
+    callback(links.length ? links : undefined);
+  }
+
+  var linkProviderRegistration = null;
+  function installLinkProvider() {
+    linkProviderRegistration?.dispose();
+    linkProviderRegistration = term.registerLinkProvider({ provideLinks: provideLinks });
+  }
+  installLinkProvider();
+
+  function visibleLinks() {
+    var screen = el.querySelector(".xterm-screen");
+    if (!screen) return [];
+    var rect = screen.getBoundingClientRect();
+    if (!rect.width || !rect.height || !term.cols || !term.rows) return [];
+    var cellWidth = rect.width / term.cols, cellHeight = rect.height / term.rows;
+    var buffer = term.buffer.active;
+    collectingLinks = null;
+    var resetRow = Math.max(0, Math.min(term.rows, buffer.length - buffer.viewportY) - 1);
+    screen.dispatchEvent(new MouseEvent("mousemove", {
+      bubbles: true,
+      clientX: rect.left + cellWidth / 2,
+      clientY: rect.top + (resetRow + 0.5) * cellHeight,
+    }));
+    screen.dispatchEvent(new MouseEvent("mouseleave"));
+    collectingLinks = [];
+    for (var row = 0; row < term.rows && collectingLinks.length < 8; row++) {
+      var line = buffer.getLine(buffer.viewportY + row);
+      if (!line || !line.translateToString(true)) continue;
+      for (var column = 0; column < term.cols && collectingLinks.length < 8; column++) {
+        screen.dispatchEvent(new MouseEvent("mousemove", {
+          bubbles: true,
+          clientX: rect.left + (column + 0.5) * cellWidth,
+          clientY: rect.top + (row + 0.5) * cellHeight,
+        }));
+      }
+    }
+    var urls = collectingLinks;
+    collectingLinks = null;
+    screen.dispatchEvent(new MouseEvent("mouseleave"));
+    return urls;
+  }
+
   function checkModes() {
     var cur = !!(term.modes && term.modes.applicationCursorKeysMode);
     var bp = !!(term.modes && term.modes.bracketedPasteMode);
@@ -81,6 +213,40 @@
   // itself: mouse wheel when it asked for the mouse, arrow keys otherwise.
   // Pinch zoom and panning a zoomed page stay with the WebView.
   var touch = null, acc = 0, lastY = 0, lastT = 0, velocity = 0, flingTimer = null;
+
+  // xterm activates links through its mouse linkifier. Dispatch that sequence
+  // from the touch location so phones do not need a prior hover event.
+  function dispatchTouchMouse(touchPoint) {
+    var screen = el.querySelector(".xterm-screen");
+    if (!screen) return false;
+    var rect = screen.getBoundingClientRect();
+    if (!rect.width || !rect.height || !term.cols || !term.rows) return false;
+    var options = {
+      bubbles: true,
+      cancelable: true,
+      clientX: touchPoint.x,
+      clientY: touchPoint.y,
+      button: 0,
+    };
+    var cellHeight = rect.height / term.rows;
+    var touchRow = Math.max(0, Math.min(term.rows - 1, Math.floor((touchPoint.y - rect.top) / cellHeight)));
+    var resetRow = touchRow === 0 ? term.rows - 1 : 0;
+    touchLinkActivated = false;
+    touchLinkDispatch = true;
+    try {
+      screen.dispatchEvent(new MouseEvent("mousemove", {
+        bubbles: true,
+        clientX: rect.left + rect.width / term.cols / 2,
+        clientY: rect.top + (resetRow + 0.5) * cellHeight,
+      }));
+      screen.dispatchEvent(new MouseEvent("mousemove", options));
+      screen.dispatchEvent(new MouseEvent("mousedown", Object.assign({}, options, { buttons: 1 })));
+      screen.dispatchEvent(new MouseEvent("mouseup", Object.assign({}, options, { buttons: 0 })));
+    } finally {
+      touchLinkDispatch = false;
+    }
+    return touchLinkActivated;
+  }
 
   function rowHeight() {
     var row = el.querySelector(".xterm-rows > div");
@@ -163,7 +329,13 @@
 
   window.addEventListener("touchend", function (e) {
     if (!touch) return;
-    if (!touch.moved && Date.now() - touch.t < 350) post({ type: "tap" });
+    if (!touch.moved && Date.now() - touch.t < 350) {
+      var activated = dispatchTouchMouse({ x: touch.x, y: touch.y });
+      if (!activated) {
+        if (pendingTap) clearTimeout(pendingTap);
+        pendingTap = setTimeout(function () { pendingTap = null; post({ type: "tap" }); }, 0);
+      }
+    }
     else if (!touch.scrolling && !touch.zoomed && touch.dx > 80 && Math.abs(touch.dx) > 2 * Math.abs(touch.dy)) post({ type: "back" });
     else if (touch.scrolling) {
       e.stopPropagation();
@@ -217,6 +389,9 @@
         });
       } else if (msg.type === "reset") {
         term.reset();
+        term.refresh(0, term.rows - 1);
+        installLinkHandler();
+        installLinkProvider();
         mouseEncoding = "DEFAULT";
         checkModes();
       } else if (msg.type === "mode") {
@@ -231,6 +406,8 @@
         layout();
       } else if (msg.type === "bottom") {
         term.scrollToBottom();
+      } else if (msg.type === "listLinks" && typeof msg.id === "string") {
+        post({ type: "links", id: msg.id, urls: visibleLinks() });
       }
     },
   };

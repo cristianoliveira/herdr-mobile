@@ -8,6 +8,7 @@ import { useSettings } from "../../src/settings";
 import { panelHistory } from "../../src/panel-navigation";
 import { TerminalInput, type TerminalInputHandle } from "../../src/terminal/TerminalInput";
 import { TerminalView, type TerminalHandle, type TerminalMode } from "../../src/terminal/TerminalView";
+import { displayLinkTarget } from "../../src/terminal/links";
 import { SessionActions } from "../../src/ui/SessionActions";
 import { SheetAction } from "../../src/ui/Sheet";
 import { useKeyboardHeight } from "../../src/ui/keyboard";
@@ -24,6 +25,7 @@ export default function SessionScreen() {
   const live = t?.state === "live";
   const [view, setView] = useState<TerminalMode>(settings.defaultMode);
   const [actions, setActions] = useState(false);
+  const [visibleLinks, setVisibleLinks] = useState<string[] | null>(null);
   const terminal = useRef<TerminalHandle>(null);
   const input = useRef<TerminalInputHandle>(null);
   const insets = useSafeAreaInsets();
@@ -34,6 +36,10 @@ export default function SessionScreen() {
   }, [key, !!session]));
 
   const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
+
+  const loadVisibleLinks = async () => {
+    setVisibleLinks(await terminal.current?.listVisibleLinks() ?? []);
+  };
 
   const seen = useRef(false);
   const title = useRef("Session");
@@ -83,7 +89,33 @@ export default function SessionScreen() {
       ) : (
         <View style={{ height: Math.max(insets.bottom, space.sm) }} />
       )}
-      <SessionActions session={actions ? session ?? null : null} onClose={() => setActions(false)}>
+      <SessionActions
+        session={actions ? session ?? null : null}
+        onClose={() => {
+          setActions(false);
+          setVisibleLinks(null);
+        }}
+      >
+        <SheetAction
+          label={visibleLinks === null ? "Links" : "Refresh links"}
+          detail="Find up to 8 HTTP(S) links visible in the terminal"
+          onPress={() => void loadVisibleLinks()}
+        />
+        {visibleLinks?.length === 0 && (
+          <SheetAction label="No visible links" detail="Scroll to a link and refresh this list" onPress={() => void loadVisibleLinks()} />
+        )}
+        {visibleLinks?.map((url, index) => (
+          <SheetAction
+            key={`${index}:${url}`}
+            label={`Open link ${index + 1}`}
+            detail={displayLinkTarget(url)}
+            onPress={() => {
+              setActions(false);
+              setVisibleLinks(null);
+              terminal.current?.openExternalLink(url);
+            }}
+          />
+        ))}
         <SheetAction
           label={view === "fit" ? "Desktop size" : "Phone size"}
           detail={view === "fit" ? "Its own size, scaled down; pinch to zoom" : "Reflow it to fit the phone"}
