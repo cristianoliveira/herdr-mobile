@@ -30,7 +30,7 @@ that reaches SSH works.
   Projects): a new space with nvim, deltoids, gob and Pi, like the desktop app's
   new-space, or a new Pi in the project's space when it has one.
 - **Manage:** interrupt, copy output, kill, or close an agent (kill it and
-  remove it from the list). Swipe an agent left in Spaces or the Inbox to
+  remove it from the list). Swipe an agent right in Spaces or the Inbox to
   close it; long press it for all actions.
 
 ## Requirements

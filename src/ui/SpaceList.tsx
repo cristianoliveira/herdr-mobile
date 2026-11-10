@@ -14,7 +14,7 @@ type Props = {
   onSelect: (s: Session) => void;
   /** A long press: the session's actions. */
   onActions?: (s: Session) => void;
-  /** Swiping a row left offers this. */
+  /** Swiping a row right offers this. */
   onCloseSession?: (s: Session) => void;
   onStart?: (space: Space) => void;
 };
@@ -105,13 +105,13 @@ function SwipeToClose({ onClose, children }: { onClose: () => void; children: Re
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
       onPanResponderTerminationRequest: () => false,
-      onPanResponderMove: (_, g) => x.setValue(Math.max(-ACTION_WIDTH * 1.5, Math.min(0, at.current + g.dx))),
-      onPanResponderRelease: (_, g) => settle(at.current + g.dx < -ACTION_WIDTH / 2 || g.vx < -0.5 ? -ACTION_WIDTH : 0),
+      onPanResponderMove: (_, g) => x.setValue(Math.min(ACTION_WIDTH * 1.5, Math.max(0, at.current + g.dx))),
+      onPanResponderRelease: (_, g) => settle(at.current + g.dx > ACTION_WIDTH / 2 || g.vx > 0.5 ? ACTION_WIDTH : 0),
       onPanResponderTerminate: () => settle(at.current),
     }),
   ).current;
 
-  const shown = useRef(x.interpolate({ inputRange: [-1, 0], outputRange: [1, 0], extrapolate: "clamp" })).current;
+  const shown = useRef(x.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: "clamp" })).current;
 
   return (
     <View style={styles.swipe}>
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   addPressed: { backgroundColor: colors.surfaceHigh },
   swipe: { borderRadius: radius.md, overflow: "hidden" },
   slide: { backgroundColor: colors.bg },
-  closeAction: { position: "absolute", top: 0, bottom: 0, right: 0, width: ACTION_WIDTH },
+  closeAction: { position: "absolute", top: 0, bottom: 0, left: 0, width: ACTION_WIDTH },
   closeButton: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, backgroundColor: colors.blocked },
   closePressed: { opacity: 0.8 },
   closeText: { color: colors.text, fontSize: 13, fontWeight: "700" },
