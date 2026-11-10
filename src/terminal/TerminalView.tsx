@@ -7,6 +7,7 @@ import { WebView } from "react-native-webview";
 import { toBase64, utf8Encode } from "../hc/bytes";
 import type { AttachStream, HcConnection } from "../hc/connection";
 import { colors } from "../ui/theme";
+import { Sheet, SheetAction } from "../ui/Sheet";
 import { rememberFitSize } from "./fit";
 import { parseExternalLinkMessage } from "./links";
 import { TERMINAL_HTML } from "./terminal-html.generated";
@@ -47,6 +48,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
   const stream = useRef<AttachStream | null>(null);
   const [ended, setEnded] = useState<string | null>(null);
   const [linkError, setLinkError] = useState(false);
+  const [linkToOpen, setLinkToOpen] = useState<string | null>(null);
   const pending = useRef<Uint8Array[]>([]);
   const appCursor = useRef(false);
   const bracketed = useRef(false);
@@ -173,9 +175,12 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     }
   };
 
-  const openLink = async (raw: string) => {
+  const openLink = (raw: string) => {
     const url = parseExternalLinkMessage(raw);
-    if (!url) return;
+    if (url) setLinkToOpen(url);
+  };
+
+  const launchLink = async (url: string) => {
     setLinkError(false);
     try {
       await Linking.openURL(url);
@@ -200,6 +205,17 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
         hideKeyboardAccessoryView
         onContentProcessDidTerminate={() => setReady(false)}
       />
+      <Sheet visible={linkToOpen !== null} onClose={() => setLinkToOpen(null)}>
+        <SheetAction
+          label="Open link in browser"
+          detail="This opens outside Herdr."
+          onPress={() => {
+            const url = linkToOpen;
+            setLinkToOpen(null);
+            if (url) void launchLink(url);
+          }}
+        />
+      </Sheet>
       {(!conn || ended || linkError) && (
         <View style={styles.notice} pointerEvents="none">
           <Text accessibilityLiveRegion="polite" style={styles.noticeText}>

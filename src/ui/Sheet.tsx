@@ -55,7 +55,7 @@ export function Sheet({ visible, onClose, onShow, contentStyle, inline = false, 
 
 export function SheetAction({ label, detail, onPress, danger, disabled }: { label: string; detail?: string; onPress: () => void; danger?: boolean; disabled?: boolean }) {
   return (
-    <Pressable style={({ pressed }) => [styles.action, pressed && styles.pressed, disabled && { opacity: 0.4 }]} onPress={onPress} disabled={disabled}>
+    <Pressable accessibilityRole="button" style={({ pressed }) => [styles.action, pressed && styles.pressed, disabled && { opacity: 0.4 }]} onPress={onPress} disabled={disabled}>
       <Text style={[styles.actionText, danger && { color: colors.blocked }]}>{label}</Text>
       {detail ? <Text style={styles.detail}>{detail}</Text> : null}
     </Pressable>
