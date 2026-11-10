@@ -69,6 +69,9 @@ No private keystore or password is committed to this repository.
 1. Checks out the selected ref and resolves the alpha tag.
 2. Runs typecheck and tests, including real scratch hc cores.
 3. Uses Expo prebuild and Gradle on GitHub's runner to build a standalone APK.
+   The alpha-only Gradle configuration keeps the 2 GiB heap and raises the
+   Metaspace cap to 1 GiB for Android lint workers; this addresses the observed
+   lint Metaspace exhaustion without bypassing lint or unbounded memory growth.
 4. Pins the public test key, aligns, signs, and verifies the APK.
 5. Stores the APK and `SHA256SUMS` as workflow artifacts for 14 days.
 6. Verifies checksums in a separate publication job, uploads files to a draft

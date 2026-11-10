@@ -6,6 +6,7 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    plugins: [...(config.plugins ?? []), "./plugins/with-alpha-gradle-memory"],
     name: "Herdr Alpha",
     scheme: "herdrmobile-alpha",
     android: { ...config.android, package: `${config.android.package}.alpha` },
