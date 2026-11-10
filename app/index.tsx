@@ -11,10 +11,10 @@ import { Dot } from "../src/ui/Dot";
 import { explainError, linkColor } from "../src/ui/machine-display";
 import { NewSessionSheet } from "../src/ui/NewSessionSheet";
 import { ProjectSheet } from "../src/ui/ProjectSheet";
-import { SessionActions } from "../src/ui/SessionActions";
+import { confirmClose, SessionActions } from "../src/ui/SessionActions";
 import { SpaceSearchSheet } from "../src/ui/SpaceSearchSheet";
 import { updateSettings, useSettings } from "../src/settings";
-import { InboxList, SpaceList } from "../src/ui/SpaceList";
+import { InboxList, shutSwipedRow, SpaceList } from "../src/ui/SpaceList";
 import { colors, radius, space } from "../src/ui/theme";
 import { applyUpdate, useUpdates } from "../src/updates";
 
@@ -71,6 +71,7 @@ export default function Agents() {
       <View style={styles.contentRoot} accessibilityElementsHidden={searching} importantForAccessibility={searching ? "no-hide-descendants" : "auto"}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
+        onScrollBeginDrag={shutSwipedRow}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => fleet.reconnect()} tintColor={colors.muted} />}
       >
         {loaded && machines.length === 0 && (
@@ -102,8 +103,8 @@ export default function Agents() {
         )}
 
         {inbox
-          ? <InboxList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onActions={(s) => setActionsFor(s.key)} />
-          : <SpaceList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onActions={(s) => setActionsFor(s.key)} onStart={setStartIn} />}
+          ? <InboxList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onActions={(s) => setActionsFor(s.key)} onCloseSession={(s) => confirmClose(s)} />
+          : <SpaceList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onActions={(s) => setActionsFor(s.key)} onCloseSession={(s) => confirmClose(s)} onStart={setStartIn} />}
 
         {inbox && machines.length > 0 && connected && !waiting && (
           <View style={styles.empty}>

@@ -8,6 +8,19 @@ import { agentTitle, ago, shortPath } from "./session-display";
 import { Sheet, SheetAction } from "./Sheet";
 import { colors, space } from "./theme";
 
+/** Ask, then end the agent and remove its session. */
+export function confirmClose(session: Session, after?: () => void) {
+  Alert.alert(`Close ${agentTitle(session)}?`, "Its program ends and the session goes away. This cannot be undone.", [
+    { text: "Cancel", style: "cancel" },
+    {
+      text: "Close",
+      style: "destructive",
+      onPress: () =>
+        void fleet.close(session.key).then(after, (e) => Alert.alert("It did not work", e instanceof Error ? e.message : String(e))),
+    },
+  ]);
+}
+
 export function SessionActions({ session, onClose, children }: { session: Session | null; onClose: () => void; children?: ReactNode }) {
   const t = session?.terminal;
   const live = t?.state === "live";
@@ -65,20 +78,7 @@ export function SessionActions({ session, onClose, children }: { session: Sessio
               label="Close"
               detail="End it and remove it from the list"
               danger
-              onPress={run(() =>
-                Alert.alert(`Close ${agentTitle(session)}?`, "Its program ends and the session goes away. This cannot be undone.", [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Close",
-                    style: "destructive",
-                    onPress: () =>
-                      void fleet.close(session.key).then(
-                        () => router.canGoBack() && router.back(),
-                        (e) => Alert.alert("It did not work", e instanceof Error ? e.message : String(e)),
-                      ),
-                  },
-                ]),
-              )}
+              onPress={run(() => confirmClose(session, () => router.canGoBack() && router.back()))}
             />
           )}
           {live ? (
