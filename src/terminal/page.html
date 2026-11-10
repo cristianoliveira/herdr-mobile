@@ -62,10 +62,68 @@
   }
 
   var mode = "view";
+  var pendingTap = null;
   var appCursor = false;
   var bracketed = false;
 
   // Report the cursor-key mode so the key bar sends the arrows the program expects.
+  function activateLink(event, url) {
+    if (pendingTap) { clearTimeout(pendingTap); pendingTap = null; }
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    post({ type: "link", url: url });
+  }
+
+  function isHttpUrl(url) {
+    return /^https?:\/\//i.test(url);
+  }
+
+  term.options.linkHandler = {
+    activate: function (event, uri) {
+      if (isHttpUrl(uri)) activateLink(event, uri);
+    },
+  };
+
+  term.registerLinkProvider({
+    provideLinks: function (bufferLineNumber, callback) {
+      var buffer = term.buffer.active;
+      var first = bufferLineNumber;
+      while (first > 1 && buffer.getLine(first).isWrapped) first--;
+      var last = first;
+      while (last < buffer.length && buffer.getLine(last + 1).isWrapped) last++;
+
+      var text = "", segments = [];
+      for (var lineNumber = first; lineNumber <= last; lineNumber++) {
+        var line = buffer.getLine(lineNumber);
+        var chunk = line ? line.translateToString(true) : "";
+        segments.push({ line: lineNumber, start: text.length, length: chunk.length });
+        text += chunk;
+      }
+
+      var links = [], match;
+      var pattern = /https?:\/\/[^\s<>"'`]+/gi;
+      while ((match = pattern.exec(text))) {
+        let url = match[0].replace(/[.,;:!?)}\]]+$/, "");
+        if (!url) continue;
+        var start = match.index, end = start + url.length - 1;
+        var startSegment = segments.find(function (segment) { return start < segment.start + segment.length; });
+        var endSegment = segments.find(function (segment) { return end < segment.start + segment.length; });
+        if (!startSegment || !endSegment) continue;
+        if (bufferLineNumber < startSegment.line || bufferLineNumber > endSegment.line) continue;
+        var startColumn = start - startSegment.start + 1;
+        var endColumn = end - endSegment.start + 1;
+        links.push({
+          range: {
+            start: { x: startColumn, y: startSegment.line },
+            end: { x: endColumn, y: endSegment.line },
+          },
+          text: url,
+          activate: function (event) { activateLink(event, url); },
+        });
+      }
+      callback(links.length ? links : undefined);
+    },
+  });
+
   function checkModes() {
     var cur = !!(term.modes && term.modes.applicationCursorKeysMode);
     var bp = !!(term.modes && term.modes.bracketedPasteMode);
@@ -163,7 +221,10 @@
 
   window.addEventListener("touchend", function (e) {
     if (!touch) return;
-    if (!touch.moved && Date.now() - touch.t < 350) post({ type: "tap" });
+    if (!touch.moved && Date.now() - touch.t < 350) {
+      if (pendingTap) clearTimeout(pendingTap);
+      pendingTap = setTimeout(function () { pendingTap = null; post({ type: "tap" }); }, 0);
+    }
     else if (!touch.scrolling && !touch.zoomed && touch.dx > 80 && Math.abs(touch.dx) > 2 * Math.abs(touch.dy)) post({ type: "back" });
     else if (touch.scrolling) {
       e.stopPropagation();
