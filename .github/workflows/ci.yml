@@ -69,7 +69,7 @@ jobs:
     name: Publish Android preview update
     runs-on: ubuntu-latest
     needs: [check, update-changes]
-    if: needs.update-changes.outputs.relevant == 'true'
+    if: needs.update-changes.outputs.relevant == 'true' && github.event_name != 'pull_request'
     concurrency:
       group: ota-preview
       cancel-in-progress: true
@@ -90,8 +90,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Publish
+      - name: Publish or skip preview update
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN is not configured; skipping optional preview OTA publish."
+            exit 0
+          fi
           pnpm run publish:update --message "$(git log -1 --pretty=%s) ($(git rev-parse --short HEAD))"

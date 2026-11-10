@@ -101,10 +101,13 @@ This preserves alpha app data. Never uninstall to bypass a signing mismatch.
 ## Existing preview updates: push to main
 
 The existing CI workflow (`.github/workflows/ci.yml`) still runs typecheck and
-tests, then publishes an Android update to the EAS `preview` channel. Markdown-only
-pushes publish nothing. This separate OTA path needs `EXPO_TOKEN`, but the alpha
-APK workflow does not. Merging to main can therefore update existing preview
-apps; it does not automatically create an alpha APK.
+tests, then publishes an Android update to the EAS `preview` channel when app
+files change and `EXPO_TOKEN` is configured. Without the token, CI reports that
+the optional preview publish was skipped; typecheck and tests still run and
+remain required. Markdown-only pushes publish nothing. This separate OTA path
+uses `EXPO_TOKEN`, but the alpha APK workflow does not. Merging to main can
+therefore update existing preview apps; it does not automatically create an
+alpha APK.
 
 Alpha builds have OTA disabled and will not receive these updates. Regular
 preview builds keep the original package and update behavior. When needed,
