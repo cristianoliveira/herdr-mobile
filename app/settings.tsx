@@ -2,11 +2,11 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { agentPrompt, definitionCommands, definitionLink, useDefinition, useSyncStatus } from "../src/definition/controller";
 import { useFleet } from "../src/fleet-store";
 import { updateSettings, useSettings } from "../src/settings";
 import { Cell, Row, Section } from "../src/ui/Group";
-import { TextField } from "../src/ui/TextField";
-import { projectPathError } from "../src/projects";
 import { colors, radius, space } from "../src/ui/theme";
 import { applyUpdate, currentUpdate, fetchUpdate, updatesEnabled } from "../src/updates";
 
@@ -24,7 +24,7 @@ export default function SettingsScreen() {
         />
       </Section>
 
-      <ProjectSettings />
+      <DefinitionSettings />
 
       <Section title="Terminal">
         <Row label="Text size">
@@ -52,59 +52,6 @@ export default function SettingsScreen() {
         </Row>
       </Section>
     </ScrollView>
-  );
-}
-
-function ProjectSettings() {
-  const s = useSettings();
-  const [path, setPath] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const save = async (projectPaths: string[], projectLayout = s.projectLayout) => {
-    setError(null);
-    setSaving(true);
-    try {
-      await updateSettings({ projectPaths, projectLayout });
-    } catch {
-      setError("Could not save project settings. Try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-  const add = (value: string) => {
-    const next = value.trim();
-    const invalid = projectPathError(next);
-    setError(invalid);
-    if (invalid) return false;
-    void save([...s.projectPaths, next]);
-    return true;
-  };
-  return (
-    <Section title="Projects">
-      <Row label="Project paths" hint="Search all these paths on every connected machine. Results are combined." />
-      {s.projectPaths.map((saved) => (
-        <Row key={saved} label={saved}>
-          <Small label="Remove" accessibilityLabel={`Remove ${saved}`} onPress={() => void save(s.projectPaths.filter((value) => value !== saved))} disabled={saving} />
-        </Row>
-      ))}
-      {!s.projectPaths.length && <Row label="No paths yet" hint="Add a path below to find projects." />}
-      <Cell>
-        <Text style={styles.smallText}>Add a path</Text>
-        <View style={styles.presets}>
-          {["~/workspace", "~/projects", "~/code", "~/src"].filter((preset) => !s.projectPaths.includes(preset)).map((preset) => (
-            <Small key={preset} label={`+ ${preset}`} onPress={() => add(preset)} disabled={saving} />
-          ))}
-        </View>
-        <TextField accessibilityLabel="Custom project path" value={path} onChangeText={setPath} onSubmitEditing={() => { if (add(path)) setPath(""); }} returnKeyType="done" placeholder="~/repos or /srv/projects" autoCorrect={false} spellCheck={false} invalid={!!error} editable={!saving} inset />
-        <Small label={saving ? "Saving…" : "Add custom path"} onPress={() => { if (add(path)) setPath(""); }} disabled={saving || s.projectPaths.includes(path.trim())} />
-        {error && <Text accessibilityRole="alert" style={styles.smallText}>{error}</Text>}
-      </Cell>
-      <Cell>
-        <Text style={styles.smallText}>Folder layout for all paths</Text>
-        <Segmented value={s.projectLayout} options={[["direct", "Direct folders"], ["grouped", "Owner / repo"]]} onChange={(layout) => { if (!saving) void save(s.projectPaths, layout); }} />
-        <Text style={styles.smallText}>{s.projectLayout === "direct" ? "<path>/repo" : "<path>/owner/repo"}</Text>
-      </Cell>
-    </Section>
   );
 }
 
@@ -157,3 +104,62 @@ const styles = StyleSheet.create({
   active: { backgroundColor: colors.accent },
   activeText: { color: colors.onAccent, fontWeight: "700" },
 });
+
+function DefinitionSettings() {
+  const { links } = useFleet();
+  const status = useSyncStatus();
+  const def = useDefinition();
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const chosen = definitionLink();
+  const errors = Object.entries(def.errors);
+  const state =
+    status.state === "synced"
+      ? `Synced from ${status.home ?? "~/.config/herdr-mobile"}`
+      : status.state === "starting"
+        ? "Connecting…"
+        : status.state === "failed"
+          ? `Failed: ${status.error}`
+          : status.state === "none"
+            ? "Add a machine first"
+            : "Offline: showing the last definition it had";
+  const act = (name: string, f: () => Promise<unknown>) => async () => {
+    setBusy(name);
+    try {
+      await f();
+    } catch {
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Section title="Definition">
+      <Row label="Definition machine" hint={state}>
+        {links.length > 1 && (
+          <Segmented
+            value={chosen ?? ""}
+            options={links.map((l) => [l.config.id, l.config.name] as [string, string])}
+            onChange={(v) => void updateSettings({ definitionMachine: v })}
+          />
+        )}
+      </Row>
+      <Row label="Agent prompt" hint={agentPrompt(status.machine)}>
+        <Small
+          label={copied ? "Copied" : "Copy"}
+          onPress={() => {
+            void Clipboard.setStringAsync(agentPrompt(status.machine));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        />
+      </Row>
+      <Row label={errors.length ? `${errors.length} file${errors.length > 1 ? "s" : ""} with errors` : "No errors"} hint={errors.map(([k, v]) => `${k}: ${v}`).join("\n") || undefined} />
+      <Row label="Reset layout" hint={`Puts layouts/${def.settings.layout}.json back as shipped; yours is kept beside it.`}>
+        <Small label={busy === "reset" ? "…" : "Reset"} onPress={act("reset", () => definitionCommands.resetLayout())} />
+      </Row>
+      <Row label="Reload definition">
+        <Small label={busy === "reload" ? "…" : "Reload"} onPress={act("reload", () => definitionCommands.reload())} />
+      </Row>
+    </Section>
+  );
+}

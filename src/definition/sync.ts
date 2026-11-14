@@ -87,6 +87,26 @@ export class DefinitionSync {
     return this.remote.read(full);
   }
 
+  /** The .error files there now, as error keys (mods/prs.error → "mods/prs"). */
+  async listErrors(): Promise<string[]> {
+    if (!this.home) return [];
+    const r = await this.remote.exec(["sh", "-c", 'cd "$1" 2>/dev/null && find . -name "*.error" -type f; true', "list", this.home]);
+    return r.stdout.split("\n").filter(Boolean).map((p) => p.replace(/^\.\//, "").replace(/\.error$/, ""));
+  }
+
+  /** Writes a file in the home. */
+  async writeFile(path: string, text: string) {
+    if (!this.home) throw new Error("the definition machine is not connected");
+    await this.remote.write(`${this.home}/${path}`, text);
+  }
+
+  /** Moves a file or folder in the home. */
+  async move(from: string, to: string) {
+    if (!this.home) throw new Error("the definition machine is not connected");
+    const r = await this.remote.exec(["mv", `${this.home}/${from}`, `${this.home}/${to}`]);
+    if (r.code !== 0) throw new Error(r.stderr.trim() || `cannot move ${from}`);
+  }
+
   /** Writes <key>.error (settings.error, layouts/main.error, mods/prs.error), or removes it. */
   async writeError(key: string, message: string | null) {
     if (!this.home) return;

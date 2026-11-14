@@ -49,6 +49,11 @@ export class DefinitionStore {
     this.recompute();
   }
 
+  /** A definition file's text as the phone has it. */
+  file(path: string): string | undefined {
+    return this.files[path];
+  }
+
   get current(): DefinitionView {
     return this.view;
   }

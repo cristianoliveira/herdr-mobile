@@ -1,179 +1,67 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { Link, Stack, router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fleet, useFleet, useMachines } from "../src/fleet-store";
-import type { Session } from "../src/hc/fleet";
-import { needsYou, spaces as spacesOf, type Space } from "../src/spaces";
-import { Button } from "../src/ui/Button";
-import { Dot } from "../src/ui/Dot";
-import { explainError, linkColor } from "../src/ui/machine-display";
-import { NewSessionSheet } from "../src/ui/NewSessionSheet";
-import { ProjectSheet } from "../src/ui/ProjectSheet";
-import { confirmClose, SessionActions } from "../src/ui/SessionActions";
-import { SpaceSearchSheet } from "../src/ui/SpaceSearchSheet";
-import { updateSettings, useSettings } from "../src/settings";
-import { InboxList, shutSwipedRow, SpaceList } from "../src/ui/SpaceList";
-import { colors, radius, space } from "../src/ui/theme";
-import { applyUpdate, useUpdates } from "../src/updates";
+// The root screen: the definition's layout. A tabs root draws a bottom tab
+// bar; every root screen gets its header mod and the app's menu.
+import { Stack } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
+import { useDefinition } from "../src/definition/controller";
+import { validateLayout, type Screen } from "../src/definition/layout";
+import { SHIPPED_DEFINITION } from "../src/definition/controller";
+import { useAppData } from "../src/mods/app-data";
+import { selectTab, useActiveTab } from "../src/mods/nav";
+import { AppMenu } from "../src/ui/mods/AppMenu";
+import { LayoutView } from "../src/ui/mods/LayoutView";
+import { ModBlock } from "../src/ui/mods/ModBlock";
+import { TabBar } from "../src/ui/mods/TabBar";
 
-export default function Agents() {
-  const { links, sessions, docs } = useFleet();
-  const { machines, loaded } = useMachines();
-  const [picking, setPicking] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const { inbox } = useSettings();
-  const [startIn, setStartIn] = useState<Space | null>(null);
-  const [actionsFor, setActionsFor] = useState<string | null>(null);
-  const insets = useSafeAreaInsets();
-  const { isUpdatePending } = useUpdates();
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => tick((n) => n + 1), 15_000);
-    return () => clearInterval(t);
-  }, []);
+const SHIPPED_MAIN = validateLayout(JSON.parse(SHIPPED_DEFINITION["layouts/main.json"])).layout!;
 
-  const down = links.filter((l) => l.state !== "connected");
-  const connected = links.some((l) => l.state === "connected");
-  const targets = fleet.targets();
-  const { spaces, loose } = spacesOf(docs, targets, sessions);
-  const none = spaces.length === 0 && loose.length === 0;
-  const waiting = spaces.some((sp) => sp.agents.some(needsYou)) || loose.some(needsYou);
-
-  const open = (s: Session) => router.push({ pathname: "/session/[key]", params: { key: s.key } });
-
+function Header({ screen, id }: { screen: Screen; id: string }) {
   return (
-    <View style={styles.screen}>
-      <Stack.Screen
-        options={{
-          title: inbox ? "Inbox" : "Spaces",
-          headerRight: () => (searching ? null : (
-            <View style={styles.headerActions}>
-              <Pressable
-                hitSlop={10}
-                onPress={() => void updateSettings({ inbox: !inbox })}
-                accessibilityRole="switch"
-                accessibilityLabel="Inbox"
-                accessibilityState={{ checked: inbox }}
-              >
-                <Ionicons name={inbox ? "file-tray" : "file-tray-outline"} size={24} color={inbox ? colors.accent : colors.text} />
-              </Pressable>
-              <Link href="/settings" asChild>
-                <Pressable hitSlop={10} accessibilityRole="button" accessibilityLabel="Settings">
-                  <Ionicons name="settings-outline" size={24} color={colors.text} />
-                </Pressable>
-              </Link>
-            </View>
-          )),
-        }}
-      />
-      <View style={styles.contentRoot} accessibilityElementsHidden={searching} importantForAccessibility={searching ? "no-hide-descendants" : "auto"}>
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 96 }]}
-        onScrollBeginDrag={shutSwipedRow}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={() => fleet.reconnect()} tintColor={colors.muted} />}
-      >
-        {loaded && machines.length === 0 && (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No machines yet</Text>
-            <Text style={styles.emptyText}>Add a machine that runs herdr-core to see its agents here.</Text>
-            <Button title="Add a machine" onPress={() => router.push("/machines")} style={styles.emptyButton} />
+    <Stack.Screen
+      options={{
+        title: screen.title ?? "",
+        headerRight: () => (
+          <View style={styles.header}>
+            {screen.header && <ModBlock mod={screen.header.mod} props={screen.header.props ?? {}} copyId={`${id}/header`} />}
+            <AppMenu />
           </View>
-        )}
+        ),
+      }}
+    />
+  );
+}
 
-        {isUpdatePending && (
-          <Pressable style={[styles.banner, styles.update]} onPress={() => void applyUpdate()} accessibilityRole="button">
-            <Text style={styles.bannerText}>A new version is ready</Text>
-            <Text style={styles.updateAction}>Restart</Text>
-          </Pressable>
-        )}
+export default function Root() {
+  const def = useDefinition();
+  const { theme: t } = useAppData();
+  const layout = def.layouts[def.settings.layout] ?? def.layouts.main ?? SHIPPED_MAIN;
+  const root = layout.root;
+  const activeId = useActiveTab(root.type === "tabs" ? root.id : "");
 
-        {down.length > 0 && (
-          <Link href="/machines" asChild>
-            <Pressable style={styles.banner} accessibilityRole="button">
-              <Dot color={down.some((l) => l.state !== "connecting") ? colors.blocked : linkColor("connecting")} />
-              <Text style={styles.bannerText} numberOfLines={2}>
-                {down.length > 1
-                  ? `${down.length} machines are not connected`
-                  : `${down[0].config.name}: ${down[0].state === "connecting" ? "connecting…" : explainError(down[0].error, down[0].config) || "offline"}`}
-              </Text>
-            </Pressable>
-          </Link>
-        )}
-
-        {inbox
-          ? <InboxList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onActions={(s) => setActionsFor(s.key)} onCloseSession={(s) => confirmClose(s)} />
-          : <SpaceList spaces={spaces} loose={loose} showMachine={targets.length > 1} onSelect={open} onActions={(s) => setActionsFor(s.key)} onCloseSession={(s) => confirmClose(s)} onStart={setStartIn} />}
-
-        {inbox && machines.length > 0 && connected && !waiting && (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>Inbox empty</Text>
-            <Text style={styles.emptyText}>No agent needs you right now.</Text>
-            <Button title="Show all spaces" variant="secondary" onPress={() => void updateSettings({ inbox: false })} style={styles.emptyButton} />
-          </View>
-        )}
-
-        {!inbox && machines.length > 0 && connected && none && (
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No spaces yet</Text>
-            <Text style={styles.emptyText}>Tap + to open a project.</Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {connected && (
-        <View style={[styles.bottomActions, { bottom: insets.bottom + 20 }]}>
-          <Pressable
-            onPress={() => setSearching(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Search spaces and agents"
-            style={({ pressed }) => [styles.searchButton, pressed && styles.fabPressed]}
-          >
-            <Ionicons name="search" size={24} color={colors.text} />
-          </Pressable>
-          <Pressable
-            onPress={() => setPicking(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Open a project"
-            style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          >
-            <Ionicons name="add" size={32} color={colors.onAccent} />
-          </Pressable>
-        </View>
-      )}
-      <NewSessionSheet space={startIn} onClose={() => setStartIn(null)} />
-      <ProjectSheet visible={picking} spaces={spaces} onClose={() => setPicking(false)} />
-      <SessionActions session={sessions.find((s) => s.key === actionsFor) ?? null} onClose={() => setActionsFor(null)} />
+  if (root.type !== "tabs") {
+    return (
+      <View style={[styles.screen, { backgroundColor: t.background }]}>
+        <Header screen={root} id={`root/${root.id}`} />
+        <LayoutView node={root} screen={`root/${root.id}`} />
       </View>
-      <SpaceSearchSheet visible={searching} spaces={spaces} loose={loose} showMachine={targets.length > 1} onClose={() => setSearching(false)} onSelect={(session) => { setSearching(false); open(session); }} />
+    );
+  }
+  const active = root.children.find((c) => c.id === activeId) ?? root.children[0];
+  return (
+    <View style={[styles.screen, { backgroundColor: t.background }]}>
+      <Header screen={active.screen} id={`${root.id}/${active.id}`} />
+      {root.children.map((tab) => (
+        <View key={tab.id} style={[styles.screen, tab.id !== active.id && styles.hidden]}>
+          <LayoutView node={tab.screen} screen={`${root.id}/${tab.id}`} />
+        </View>
+      ))}
+      <TabBar tabs={root.children} active={active.id} onSelect={(id) => selectTab(root.id, id)} />
+      {!root.children.length && <Text style={{ color: t.muted }}>This layout has no tabs.</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  contentRoot: { flex: 1 },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: space.lg },
-  content: { padding: space.md, paddingTop: space.md },
-  banner: { flexDirection: "row", alignItems: "center", gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.md, padding: space.md, marginBottom: space.md - 2 },
-  bannerText: { color: colors.text, fontSize: 14, flex: 1 },
-  update: { backgroundColor: colors.accent + "22", borderColor: colors.accent, borderWidth: 1 },
-  updateAction: { color: colors.accent, fontSize: 14, fontWeight: "700" },
-  empty: { alignItems: "center", marginTop: 60, gap: space.md - 2, paddingHorizontal: space.xl },
-  emptyTitle: { color: colors.text, fontSize: 20, fontWeight: "700" },
-  emptyText: { color: colors.muted, fontSize: 14, textAlign: "center" },
-  emptyButton: { marginTop: space.sm },
-  bottomActions: { position: "absolute", right: 20, flexDirection: "row", alignItems: "center", gap: space.sm },
-  searchButton: { width: 56, height: 56, alignItems: "center", justifyContent: "center", borderRadius: radius.full, backgroundColor: colors.surfaceHigh, borderColor: colors.border, borderWidth: 1 },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.full,
-    backgroundColor: colors.accent,
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
-  },
-  fabPressed: { opacity: 0.8 },
+  screen: { flex: 1 },
+  hidden: { display: "none" },
+  header: { flexDirection: "row", alignItems: "center", gap: 16 },
 });

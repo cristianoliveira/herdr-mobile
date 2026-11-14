@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { utf8Decode } from "../src/hc/bytes";
 import { Fleet, type MachineConfig } from "../src/hc/fleet";
-import { spaces } from "../src/spaces";
+import { fleetData } from "../src/mods/data";
 import { hcProcessTransport } from "./node-transport";
 
 const scratch = mkdtempSync(join(tmpdir(), "hm-fleet-"));
@@ -169,7 +169,7 @@ test("a line that went silent while the phone slept is noticed and replaced", as
   expect(opened).toBe(2);
 }, 30_000);
 
-test("spaces come from each machine's Herdr layout and from labels, with sub-agents under their parent", async () => {
+test("spaces come from each machine's herdr-app document and from labels, with sub-agents under their parent", async () => {
   const fleet = new Fleet(open);
   fleets.push(fleet);
   fleet.setMachines([A]);
@@ -196,21 +196,21 @@ test("spaces come from each machine's Herdr layout and from labels, with sub-age
   const loneKey = await agent({ "herdr.space": "sp_new", "herdr.tab": "tb2" });
   const childKey = `${b.coreId}:${child.address.split("/").pop()}`;
 
-  const view = () => {
-    const snap = fleet.snapshot();
-    return spaces(snap.docs, fleet.targets().filter((t) => t.coreId === b.coreId), snap.sessions);
-  };
+  const view = () => fleetData({ snapshot: fleet.snapshot(), targets: fleet.targets().filter((t) => t.coreId === b.coreId), definitionLink: null });
   const ready = await until(() => {
     const v = view();
-    const all = v.spaces.flatMap((s) => s.agents.map((a) => a.key));
-    return [parent, childKey, loneKey].every((k) => all.includes(k)) && v;
+    const placed = v.agents.filter((x) => x.space).map((x) => x.address);
+    return [parent, childKey, loneKey].every((k) => placed.includes(k)) && v;
   });
 
-  const names = ready.spaces.map((s) => s.name).filter((n) => ["alpha", "project", "zeta", "a"].includes(n));
-  expect(names).toEqual(["alpha", "project", "zeta", "a"]);
-  expect(ready.spaces.at(-1)!.factory).toBe(true);
-  const zeta = ready.spaces.find((s) => s.id === "sp_zeta")!;
-  expect(zeta.agents.map((a) => a.key)).toEqual([parent, childKey]);
+  // Document order, as desktop shows them; unnamed spaces are called after where their first terminal is.
+  expect(ready.spaces.map((s) => [s.id, s.name])).toEqual([
+    ["sp_zeta", "project"],
+    ["factory-x", "a"],
+    ["sp_alpha", "alpha"],
+    ["sp_new", "project"],
+  ]);
+  expect(ready.agents.filter((x) => x.space === "sp_zeta").map((x) => x.address)).toEqual([parent, childKey]);
   expect(ready.spaces.find((s) => s.id === "sp_new")!.folder).toBe(project);
 
   await write({ spaces: [{ id: "sp_later", name: "later", folder: "/srv", tabs: [] }] });
