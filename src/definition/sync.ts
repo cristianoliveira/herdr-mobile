@@ -13,10 +13,11 @@ export type Changes = Record<string, string | null>;
 const HOME = 'printf %s "${XDG_CONFIG_HOME:-$HOME/.config}/herdr-mobile"';
 
 // Lists the definition: what desktop's watcher would count (files.rs watched()).
-const LIST = 'cd "$1" 2>/dev/null || exit 0; find layouts mods settings.json -type f ! -path "*/.*" ! -name "*.error" -exec cksum {} + 2>/dev/null; true';
+// -L follows symlinks, so a home linked from dotfiles (GNU Stow) counts.
+const LIST = 'cd "$1" 2>/dev/null || exit 0; find -L layouts mods settings.json -type f ! -path "*/.*" ! -name "*.error" -exec cksum {} + 2>/dev/null; true';
 
 // Lists the whole home, for installing.
-const LIST_ALL = 'cd "$1" 2>/dev/null || exit 0; find . -type f ! -path "*/.*" ! -name "*.error" -exec cksum {} + 2>/dev/null; true';
+const LIST_ALL = 'cd "$1" 2>/dev/null || exit 0; find -L . -type f ! -path "*/.*" ! -name "*.error" -exec cksum {} + 2>/dev/null; true';
 
 const BINARY = /\.(png|jpe?g|gif|webp)$/i;
 const MIME: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" };

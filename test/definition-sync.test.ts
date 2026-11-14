@@ -1,7 +1,7 @@
 // DefinitionSync against a real scratch core: the home it installs, the
 // changes it sees, the .error files it writes.
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
@@ -109,4 +109,20 @@ test("a shipped mod the person edited is moved aside on the next start", async (
   expect(files["mods/spaces/main.js"]).toBe("export default 3;");
   expect(files["mods/spaces-edited/main.js"]).toBe("export default 'mine';");
   renameSync(join(home, "mods", "spaces-edited"), join(scratch, "aside"));
+}, 30_000);
+
+test("files and folders linked from elsewhere (GNU Stow) count, and edits through them show", async () => {
+  const s = await sync();
+  await s.start(shipped);
+  const dots = join(scratch, "dotfiles");
+  mkdirSync(join(dots, "mods", "mine"), { recursive: true });
+  writeFileSync(join(dots, "settings.json"), '{"layout":"main"}');
+  writeFileSync(join(dots, "mods", "mine", "main.js"), "export default 4;");
+  symlinkSync(join(dots, "settings.json"), join(home, "settings.json"));
+  symlinkSync(join(dots, "mods", "mine"), join(home, "mods", "mine"));
+  expect(await s.poll()).toEqual({ "settings.json": '{"layout":"main"}', "mods/mine/main.js": "export default 4;" });
+  writeFileSync(join(dots, "mods", "mine", "main.js"), "export default 5;");
+  expect(await s.poll()).toEqual({ "mods/mine/main.js": "export default 5;" });
+  rmSync(join(home, "settings.json"));
+  rmSync(join(home, "mods", "mine"));
 }, 30_000);
