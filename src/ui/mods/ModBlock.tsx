@@ -12,6 +12,7 @@ import { hostCall } from "../../mods/host";
 import { closeOverlay, openOverlay, toast } from "../../mods/overlays";
 import { RUNTIME_FILES } from "../../mods/runtime.generated";
 import { loadStorage, saveStorage, setShared } from "../../mods/shared";
+import { useVisible } from "../../mods/visible";
 import { Renderer } from "./Renderer";
 
 /** "mods/prs/main.js:3: message", as .error files and the bar say it. */
@@ -24,7 +25,10 @@ export function useModCopy(mod: string, props: Record<string, unknown>, copyId: 
   const [state, setState] = useState<CopyState>({ description: null, error: null });
   const copyRef = useRef<ModCopy | null>(null);
   const data = useAppData();
-  const fullProps = useMemo(() => (overlay ? { ...props, overlay } : props), [props, overlay]);
+  const visible = useVisible();
+  // The same props keep the same object, so a copy isn't sent them again.
+  const propsJson = JSON.stringify(props ?? {});
+  const fullProps = useMemo(() => ({ ...JSON.parse(propsJson), ...(overlay ? { overlay } : {}) }), [propsJson, overlay]);
   const dataRef = useRef({ ...data, props: fullProps });
   dataRef.current = useMemo(() => ({ ...data, props: fullProps }), [data, fullProps]);
   const def = useDefinition();
@@ -110,9 +114,10 @@ export function useModCopy(mod: string, props: Record<string, unknown>, copyId: 
     void copy.load(f).then((ok) => ok && definition.markModGood(mod, f));
   }, [filesJson, mod]);
 
+  // Off screen, a copy waits: it draws with the latest data when it shows again.
   useEffect(() => {
-    copyRef.current?.dataChanged();
-  }, [dataRef.current]);
+    if (visible) copyRef.current?.dataChanged();
+  }, [dataRef.current, visible]);
 
   useEffect(() => {
     definition.setModError(mod, state.error ? describeError(mod, state.error) : null);

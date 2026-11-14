@@ -7,6 +7,7 @@ import { validateLayout, type Screen } from "../src/definition/layout";
 import { SHIPPED_DEFINITION } from "../src/definition/controller";
 import { useAppData } from "../src/mods/app-data";
 import { selectTab, useActiveTab } from "../src/mods/nav";
+import { VisibleContext } from "../src/mods/visible";
 import { AppMenu } from "../src/ui/mods/AppMenu";
 import { LayoutView } from "../src/ui/mods/LayoutView";
 import { ModBlock } from "../src/ui/mods/ModBlock";
@@ -51,7 +52,9 @@ export default function Root() {
       <Header screen={active.screen} id={`${root.id}/${active.id}`} />
       {root.children.map((tab) => (
         <View key={tab.id} style={[styles.screen, tab.id !== active.id && styles.hidden]}>
-          <LayoutView node={tab.screen} screen={`${root.id}/${tab.id}`} />
+          <VisibleContext.Provider value={tab.id === active.id}>
+            <LayoutView node={tab.screen} screen={`${root.id}/${tab.id}`} />
+          </VisibleContext.Provider>
         </View>
       ))}
       <TabBar tabs={root.children} active={active.id} onSelect={(id) => selectTab(root.id, id)} />
