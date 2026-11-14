@@ -53,7 +53,8 @@
           "icon": "./assets/monochrome.png",
           "color": "#3fb950"
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": false
