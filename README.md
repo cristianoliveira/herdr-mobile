@@ -8,15 +8,16 @@ machine over SSH and runs `herdr-core connect` there, so it needs no server,
 bridge, relay, or plugin on your machines. Tailscale or any other network
 that reaches SSH works.
 
-- **Spaces:** your Herdr desktop app spaces on every machine, each with its
-  agents (those that need you first, sub-agents under their parent). Factory
-  spaces come last. Tap an agent to open it; swipe right on it to go back.
-  The tray button at the top turns on the Inbox: only the agents that need
-  you (blocked, failed, or finished their turn), most urgent first. Handle
-  them and they leave; tap the tray again to see all spaces.
-- **Search:** tap the magnifying glass beside the bottom + button in Spaces. Type a space,
-  agent, or status message; choose a machine or space scope from the search
-  sheet. Results keep their space context, and tapping an agent opens it.
+- **Spaces:** your spaces on every machine, grouped by machine, each with its
+  color, branch, ahead/behind, and its worktrees under it, the same spaces
+  herdr-app desktop shows. Tap one to see its tabs; long press for its menu
+  (rename, move, worktrees, Changes, close).
+- **Agents:** every agent, by what needs you (Needs you, Done, Working, Idle)
+  or grouped by space, with the sub-agents each one started. The tab's badge
+  counts the ones that need you. Tap one to open it, swipe it right to close
+  it, long press to pin, interrupt, copy its output or kill it.
+- **Search:** the magnifying glass at the top of Spaces finds any agent or
+  space by name, message or machine.
 - **Terminal:** live, in color, with the images agents draw, at phone size or
   your desktop's size (switch in the ⋯ menu). Swipe up or down to scroll its history, or a full-screen program. Tap
   it and type: keys go straight to the terminal, and the keyboard suggests and
@@ -24,14 +25,38 @@ that reaches SSH works.
   sends esc, tab, arrows, ctrl combinations and the clipboard instantly.
   Message mode is for prose to agents: Enter sends it, and hc pastes it and
   presses Enter.
-- **Start agents:** a space's + then Pi or Claude starts it in that space's
-  folder, as a new tab there. The round + opens a project from your project
-  paths (`~/workspace/<owner>/<repo>` unless you change them in Settings →
-  Projects): a new space with nvim, deltoids, gob and Pi, like the desktop app's
-  new-space, or a new Pi in the project's space when it has one.
-- **Manage:** interrupt, copy output, kill, or close an agent (kill it and
-  remove it from the list). Swipe an agent right in Spaces or the Inbox to
-  close it; long press it for all actions.
+- **Start things:** + starts a terminal or any installed agent (Pi, Claude
+  Code, Codex, ...) as a new tab in a space, a new space in a folder on a
+  machine, or a git worktree as its own space. Spaces and tabs you make or
+  rename on the phone show up in herdr-app desktop, and the reverse.
+- **Changes:** a space's git changes with their diffs, and a commit.
+
+## Change the app with your agents
+
+The app draws itself from a **definition**: layouts and mods (small
+JavaScript programs) in `~/.config/herdr-mobile` on one of your machines, the
+*definition machine* (Settings → Definition; the first machine unless you
+pick another). Every screen above is a shipped mod. An agent on that machine
+can change any of it, or add screens of its own, and the phone redraws
+within a second while it's open. It works like herdr-app desktop's
+`~/.config/herdr-app`.
+
+To start, copy the agent prompt from Settings → Definition (or the ⋯ menu)
+and paste it into an agent, or keep it in your dotfiles:
+
+> Read ~/.config/herdr-mobile/AGENTS.md on mini (from another machine: `hc file read --on mini ~/.config/herdr-mobile/AGENTS.md`), then tell me what you can change in Herdr Mobile.
+
+The guide teaches the agent the rest: the files, the mod API, and
+`check.mjs`, which checks its work without the phone (it needs Node 18 or
+later on the definition machine). A broken file never breaks the screen:
+the phone keeps the last good version, shows the error, and writes it to a
+`.error` file next to the broken one.
+
+Shipped layouts and mods are the app's: they're replaced when the app
+updates, and one you edited is moved aside first (`mods/spaces-edited`).
+Copy a shipped mod under a new name to change it. If a layout goes wrong,
+Settings → Definition → Reset layout puts the shipped one back. Settings,
+Machines and the terminal screen are always the app's own.
 
 ## Requirements
 
@@ -77,7 +102,7 @@ directly, each terminal is listed once and the direct connection is used.
 ## Updates
 
 On Android, the app downloads updates when it starts or comes back to the
-foreground, then offers Restart on the Spaces screen. Settings shows which
+foreground, then offers Restart to update in the ⋯ menu (a dot marks it). Settings shows which
 version is running and can check for updates.
 
 On iOS, build and install the app again to update it.
@@ -86,6 +111,10 @@ On iOS, build and install the app again to update it.
 
 iOS suspends the app's connections while it is in the background. Machines
 reconnect when you open the app again.
+
+On iOS, the mod engine isn't built yet, so the screens drawn by mods (Spaces,
+Agents, a space's tabs) show an error; Settings, Machines and terminals
+work.
 
 ## Contributing
 
