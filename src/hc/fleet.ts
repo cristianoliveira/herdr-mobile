@@ -397,14 +397,21 @@ export class Fleet {
 
   /** Run a short command on a machine, without a terminal. */
   async exec(target: Target, argv: string[], cwd?: string): Promise<ExecOutput> {
+    const r = await this.execBytes(target, argv, cwd);
+    return { code: r.code, stdout: utf8Decode(r.stdout), stderr: utf8Decode(r.stderr) };
+  }
+
+  /** exec, with what it wrote as bytes (a PNG, say). */
+  async execBytes(target: Target, argv: string[], cwd?: string): Promise<{ code: number | null; stdout: Uint8Array; stderr: Uint8Array }> {
+    const r = await this.call<{ code: number | null; stdout: string; stderr: string }>(target, "machine.exec", { argv, cwd, timeout: 15 }, 30_000);
+    return { code: r.code, stdout: fromBase64(r.stdout ?? ""), stderr: fromBase64(r.stderr ?? "") };
+  }
+
+  /** Any core call, made on the target's machine. */
+  async call<T = any>(target: Target, method: string, params: Record<string, unknown>, timeoutMs?: number): Promise<T> {
     const conn = this.links.get(target.linkId)?.conn;
     if (!conn) throw new Error(`${target.label} is not connected`);
-    const r = await conn.call<{ code: number | null; stdout: string; stderr: string }>(
-      "machine.exec",
-      { argv, cwd, on: target.on, timeout: 15 },
-      30_000,
-    );
-    return { code: r.code, stdout: utf8Decode(fromBase64(r.stdout ?? "")), stderr: utf8Decode(fromBase64(r.stderr ?? "")) };
+    return conn.call<T>(method, { ...params, on: target.on }, timeoutMs);
   }
 
   private async fetchDocs(link: Link, on: string | null | undefined) {
