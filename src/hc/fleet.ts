@@ -1,6 +1,6 @@
 // Every machine the phone knows, each over its own connection, merged into one
 // list of sessions. A terminal that one machine reaches directly and another
-// reaches through `hc machine add` (as `mini/t3`) appears once, keyed by the
+// reaches through `hc machine add` (as `vps/t3`) appears once, keyed by the
 // owning core's id; the direct connection wins.
 import { fromBase64, utf8Decode } from "./bytes";
 import { HcConnection, type Transport } from "./connection";

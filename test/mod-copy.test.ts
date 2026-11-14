@@ -115,7 +115,7 @@ export default class E extends View {
   init(_p, cx) {
     this.out = "…";
     cx.spawn(async (cx) => {
-      const r = await exec("uptime", ["-p"], { on: "mini" });
+      const r = await exec("uptime", ["-p"], { on: "server" });
       try { await exec("nope"); } catch (e) { this.err = e.message; }
       this.out = r.stdout; cx.notify();
     });
@@ -125,7 +125,7 @@ export default class E extends View {
     { calls: { exec: (cmd: string, args: string[], o: any) => (cmd === "uptime" ? { code: 0, stdout: `up ${args[0]} on ${o.on}`, stderr: "" } : Promise.reject(new Error("not found"))) } },
   );
   await m.start();
-  await until(() => m.text === "up -p on mini not found");
+  await until(() => m.text === "up -p on server not found");
 });
 
 test("timers fire through cx, and setTimeout says what to use instead", async () => {

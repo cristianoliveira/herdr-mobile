@@ -56,4 +56,4 @@ QuickJS-ng is pinned to the release `@jitl/quickjs-ng-wasmfile-release-sync` is
 built from (`modules/mod-engine/cpp/quickjs/VERSION`), so the phone, the tests
 and `check.mjs` run the same engine. Bump both together.
 
-To run the app on a phone, see [pixel-7.md](pixel-7.md).
+To run the app on a phone, see [android-phone.md](android-phone.md).
