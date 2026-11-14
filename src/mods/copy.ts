@@ -25,12 +25,20 @@ export type CopyState = {
 const BOOT = "__boot.js";
 const boot = `import Mod from "./main.js"; import { __install } from "herdr"; __install(Mod);`;
 
+/** How long a closed copy keeps its engine to finish what it was waiting for. */
+const FINISH_MS = 15_000;
+
 /** One engine with what belongs to it alone. */
 class Running {
   sent = new Map<string, unknown>();
   timers = new Map<number, ReturnType<typeof setTimeout>>();
   queue: Promise<unknown> = Promise.resolve();
+  /** Not shown any more: no timers, no renders. */
   closed = false;
+  /** The engine is gone. */
+  disposed = false;
+  /** Host calls the mod still waits for. */
+  pending = 0;
   constructor(readonly engine: Engine) {}
 
   /** Engine calls run one at a time, in order. */
@@ -134,10 +142,15 @@ export class ModCopy {
   private async retire(r: Running) {
     r.stop();
     try {
+      // A copy that closed itself (an overlay running a command) still gets what
+      // it was waiting for, so "close, then open the new terminal" works.
+      const start = Date.now();
+      while (r.pending > 0 && Date.now() - start < FINISH_MS) await new Promise((resolve) => setTimeout(resolve, 50));
       // A mod's close() gets one call; what it starts has a moment to go out.
       await r.run(async () => this.outbox(r, await r.engine.call("close")));
     } finally {
       await new Promise((resolve) => setTimeout(resolve, 50));
+      r.disposed = true;
       await r.engine.dispose();
     }
   }
@@ -185,6 +198,7 @@ export class ModCopy {
           if (r === this.live) this.schedule();
           break;
         case "call":
+          r.pending++;
           this.host.call(m.name, m.args).then(
             (value) => this.settle(r, m.id, true, value ?? null),
             (e) => this.settle(r, m.id, false, e instanceof Error ? e.message : String(e)),
@@ -229,12 +243,14 @@ export class ModCopy {
   }
 
   private settle(r: Running, id: number, ok: boolean, value: unknown) {
-    if (r.closed) return;
+    if (r.disposed) return;
     void r.run(async () => {
-      if (r.closed) return;
+      if (r.disposed) return;
       const res = await r.engine.call("resolve", [id, ok, value]);
+      // Count it settled only after its callbacks ran: they may ask for more.
+      r.pending--;
       this.outbox(r, res);
-      if (!res.ok) this.set({ error: res.error });
+      if (!res.ok && r === this.live) this.set({ error: res.error });
     });
   }
 }

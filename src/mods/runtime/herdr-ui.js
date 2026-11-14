@@ -3,24 +3,25 @@
 
 export class El {
   constructor(t, x) {
-    this.t = t; // "b" box, "svg", "img", "icon", "input"
-    this.s = null; // style, React Native names
-    this.x = x ?? null; // what isn't style: path, name, lines, scroll, spin, key...
-    this.h = null; // handlers: click, long_press, refresh, change, submit
-    this.w = null; // swipe actions
-    this.k = null; // children
+    // Internal fields start with "_" so no builder method (.h(), .w()) is shadowed.
+    this._t = t; // "b" box, "svg", "img", "icon", "input"
+    this._style = null; // React Native names
+    this._extra = x ?? null; // what isn't style: path, name, lines, scroll, spin, key...
+    this._handlers = null; // click, long_press, refresh, change, submit
+    this._swipe = null;
+    this._kids = null;
   }
-  _s(key, value) { (this.s ??= {})[key] = value; return this; }
-  _x(key, value) { (this.x ??= {})[key] = value; return this; }
+  _s(key, value) { (this._style ??= {})[key] = value; return this; }
+  _x(key, value) { (this._extra ??= {})[key] = value; return this; }
   _h(key, fn) {
     if (typeof fn !== "function") throw new TypeError(`${key} needs a function`);
-    (this.h ??= {})[key] = fn;
+    (this._handlers ??= {})[key] = fn;
     return this;
   }
 
   // Children and logic
-  child(c) { (this.k ??= []).push(c); return this; }
-  children(cs) { for (const c of cs ?? []) (this.k ??= []).push(c); return this; }
+  child(c) { (this._kids ??= []).push(c); return this; }
+  children(cs) { for (const c of cs ?? []) (this._kids ??= []).push(c); return this; }
   when(cond, f) { return cond ? f(this) ?? this : this; }
   id(id) { return this._x("key", String(id)); }
 
@@ -126,7 +127,7 @@ export class El {
   swipe(direction, action) {
     if (direction !== "left" && direction !== "right") throw new TypeError('swipe direction is "left" or "right"');
     if (typeof action?.action !== "function") throw new TypeError("swipe needs { label, color, action }");
-    (this.w ??= []).push({ direction, label: String(action.label ?? ""), color: action.color ?? null, action: action.action });
+    (this._swipe ??= []).push({ direction, label: String(action.label ?? ""), color: action.color ?? null, action: action.action });
     return this;
   }
 
@@ -147,6 +148,18 @@ export class El {
   on_change(fn) { return this._h("change", fn); }
   on_submit(fn) { return this._h("submit", fn); }
 }
+
+// A method that doesn't exist says which, instead of QuickJS's bare "not a function".
+// Only lookups that miss El.prototype reach the proxy.
+Object.setPrototypeOf(
+  El.prototype,
+  new Proxy(Object.prototype, {
+    get(target, name, receiver) {
+      if (typeof name !== "string" || name in target || name === "then" || name === "toJSON") return Reflect.get(target, name, receiver);
+      throw new TypeError(`herdr-ui elements have no .${name}() (see herdr-ui.d.ts)`);
+    },
+  }),
+);
 
 export const div = () => new El("b");
 export const v_flex = () => new El("b")._s("flexDirection", "column");

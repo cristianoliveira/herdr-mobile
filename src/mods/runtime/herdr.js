@@ -108,17 +108,17 @@ function serialize(el) {
   if (el === null || el === undefined || el === false || el === true) return null;
   if (typeof el === "string" || typeof el === "number") return String(el);
   if (!(el instanceof El)) throw new TypeError(`render returned ${Array.isArray(el) ? "an array" : typeof el}: return one element from herdr-ui`);
-  const n = { t: el.t };
-  if (el.s) n.s = el.s;
-  if (el.x) Object.assign(n, el.x);
-  if (el.h) {
+  const n = { t: el._t };
+  if (el._style) n.s = el._style;
+  if (el._extra) Object.assign(n, el._extra);
+  if (el._handlers) {
     n.on = {};
-    for (const k in el.h) n.on[k] = callbacks.push(el.h[k]) - 1;
+    for (const k in el._handlers) n.on[k] = callbacks.push(el._handlers[k]) - 1;
   }
-  if (el.w) n.swipe = el.w.map((s) => ({ d: s.direction, label: s.label, color: s.color, a: callbacks.push(s.action) - 1 }));
-  if (el.k) {
+  if (el._swipe) n.swipe = el._swipe.map((s) => ({ d: s.direction, label: s.label, color: s.color, a: callbacks.push(s.action) - 1 }));
+  if (el._kids) {
     const kids = [];
-    for (const c of el.k) {
+    for (const c of el._kids) {
       const v = Array.isArray(c) ? c.map(serialize) : [serialize(c)];
       for (const x of v) if (x !== null) kids.push(x);
     }

@@ -235,3 +235,29 @@ test("render must return an element", async () => {
   expect(await m.start()).toBe(false);
   expect(m.copy.current.error?.message).toContain("return one element from herdr-ui");
 });
+
+test("a builder method that doesn't exist names itself; .h() and .w() aren't shadowed", async () => {
+  const m = setup(`import { View, div } from "herdr-ui"; export default class A extends View { render() { return div().h(10).w(20).hover(() => {}); } }`);
+  expect(await m.start()).toBe(false);
+  expect(m.copy.current.error?.message).toBe("herdr-ui elements have no .hover() (see herdr-ui.d.ts)");
+});
+
+test("a copy that closes itself still finishes what it was waiting for", async () => {
+  const calls: string[] = [];
+  const m = setup(
+    `
+import { View, div } from "herdr-ui";
+import { run } from "herdr";
+export default class P extends View {
+  render() {
+    return div().on_click(() => { run("space.new", {}).then((r) => run("terminal.show", { terminal: r.terminal })); }).child("save");
+  }
+}`,
+    { calls: { run: async (name: string) => (calls.push(name), await new Promise((r) => setTimeout(r, 100)), { terminal: "t1" }) } },
+  );
+  await m.start();
+  m.copy.event(find(m.copy.current.description, "save")!.on!.click!);
+  await new Promise((r) => setTimeout(r, 20));
+  await m.copy.close();
+  expect(calls).toEqual(["space.new", "terminal.show"]);
+});
