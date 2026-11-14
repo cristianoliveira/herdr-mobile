@@ -58,8 +58,9 @@ the app's header (it carries the ⋯ menu that reaches Settings).
 - **Line numbers:** an error you `throw` names its line. An error QuickJS
   raises itself (a missing variable, a property of `null`, calling something
   that isn't a function) names the first line of the function it happened in.
-- **Escape hatch:** Settings → Reset layout puts the shipped layout back
-  (yours is kept as `layouts/<name>.json.old-<time>`). The ⋯ menu on every
+- **Escape hatch:** Settings → Reset layout shows the shipped `main` layout
+  again, as shipped (an edited `main.json` is kept as
+  `layouts/main.json.old-<time>`; other layouts stay). The ⋯ menu on every
   root screen reaches Settings whatever the layout does.
 
 ## The files

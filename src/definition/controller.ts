@@ -198,14 +198,17 @@ export const definitionCommands = {
     await poll();
     return to;
   },
+  /** Puts a shipped layout back as shipped. Without a name, the escape hatch: back to the shipped main layout, shown. */
   async resetLayout(name?: string) {
     const s = need();
-    const which = name ?? definition.current.settings.layout;
+    const which = name ?? "main";
     const shipped = DEFAULT_FILES[`layouts/${which}.json`];
     if (shipped === undefined) throw new Error(`${which} is not a shipped layout`);
-    if (definition.file(`layouts/${which}.json`) !== undefined) await s.move(`layouts/${which}.json`, `layouts/${which}.json.old-${Date.now()}`);
-    await s.writeFile(`layouts/${which}.json`, shipped);
+    const now = definition.file(`layouts/${which}.json`);
+    if (now !== undefined && now !== shipped) await s.move(`layouts/${which}.json`, `layouts/${which}.json.old-${Date.now()}`);
+    if (now !== shipped) await s.writeFile(`layouts/${which}.json`, shipped);
     await poll();
+    if (!name && definition.current.settings.layout !== "main") await definitionCommands.switchLayout("main");
   },
   async reload() {
     sync = null;

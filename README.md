@@ -55,7 +55,7 @@ the phone keeps the last good version, shows the error, and writes it to a
 Shipped layouts and mods are the app's: they're replaced when the app
 updates, and one you edited is moved aside first (`mods/spaces-edited`).
 Copy a shipped mod under a new name to change it. If a layout goes wrong,
-Settings → Definition → Reset layout puts the shipped one back. Settings,
+Settings → Definition → Reset layout shows the shipped one again. Settings,
 Machines and the terminal screen are always the app's own.
 
 ## Requirements

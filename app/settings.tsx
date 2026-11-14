@@ -154,7 +154,7 @@ function DefinitionSettings() {
         />
       </Row>
       <Row label={errors.length ? `${errors.length} file${errors.length > 1 ? "s" : ""} with errors` : "No errors"} hint={errors.map(([k, v]) => `${k}: ${v}`).join("\n") || undefined} />
-      <Row label="Reset layout" hint={`Puts layouts/${def.settings.layout}.json back as shipped; yours is kept beside it.`}>
+      <Row label="Reset layout" hint="Shows the shipped main layout again, as shipped. Your own layouts stay; an edited main.json is kept beside it.">
         <Small label={busy === "reset" ? "…" : "Reset"} onPress={act("reset", () => definitionCommands.resetLayout())} />
       </Row>
       <Row label="Reload definition">

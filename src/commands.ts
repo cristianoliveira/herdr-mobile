@@ -220,7 +220,7 @@ export const COMMANDS: Command[] = [
   { name: "layout.switch", args: { name: "required" }, doc: "Show another layout (settings.json \"layout\").", run: (c, a) => c.definition.switchLayout(a.name) },
   { name: "layout.clone", args: { name: "required", as: "optional" }, doc: "Copy a layout to edit it (default name: <name>-copy), then show it. Returns { name }.", run: async (c, a) => ({ name: await c.definition.cloneLayout(a.name, a.as) }) },
   { name: "mod.clone", args: { name: "required", as: "optional" }, doc: "Copy a mod to edit it (default name: <name>-copy). Returns { name }.", run: async (c, a) => ({ name: await c.definition.cloneMod(a.name, a.as) }) },
-  { name: "layout.reset", args: { name: "optional" }, doc: "Put a shipped layout back as shipped (default: the one shown); yours is kept aside as <name>.json.old-<time>.", run: (c, a) => c.definition.resetLayout(a.name) },
+  { name: "layout.reset", args: { name: "optional" }, doc: "Put a shipped layout back as shipped, an edited one kept aside as <name>.json.old-<time>. Without name: show the shipped main layout again.", run: (c, a) => c.definition.resetLayout(a.name) },
   { name: "definition.reload", args: {}, doc: "Read the whole definition again from the definition machine.", run: (c) => c.definition.reload() },
 
   // Other
