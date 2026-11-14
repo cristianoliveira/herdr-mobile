@@ -8,6 +8,8 @@ node_modules/
 dist/
 *.apk
 src/terminal/terminal-html.generated.ts
+src/mods/runtime.generated.ts
+src/definition/defaults.generated.ts
 modules/*/android/build/
 modules/*/android/.cxx/
 **/.gradle/

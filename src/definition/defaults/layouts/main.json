@@ -1,0 +1,47 @@
+{
+  "root": {
+    "type": "tabs",
+    "id": "main",
+    "children": [
+      {
+        "id": "spaces",
+        "title": "Spaces",
+        "icon": "albums-outline",
+        "screen": {
+          "type": "block",
+          "id": "spaces-list",
+          "title": "Spaces",
+          "content": {
+            "mod": "spaces"
+          },
+          "header": {
+            "mod": "spaces",
+            "props": {
+              "header": true
+            }
+          }
+        }
+      },
+      {
+        "id": "agents",
+        "title": "Agents",
+        "icon": "sparkles-outline",
+        "badge": "agents.needs",
+        "screen": {
+          "type": "block",
+          "id": "agents-list",
+          "title": "Agents",
+          "content": {
+            "mod": "agents"
+          },
+          "header": {
+            "mod": "agents",
+            "props": {
+              "header": true
+            }
+          }
+        }
+      }
+    ]
+  }
+}

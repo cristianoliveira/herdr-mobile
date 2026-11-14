@@ -6,10 +6,12 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "postinstall": "node scripts/build-terminal-html.mjs",
+    "postinstall": "node scripts/build-terminal-html.mjs && node scripts/build-mod-files.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "publish:update": "eas update --channel preview --platform android --environment preview --non-interactive"
+    "publish:update": "eas update --channel preview --platform android --environment preview --non-interactive",
+    "pretest": "node scripts/build-mod-files.mjs",
+    "pretypecheck": "node scripts/build-mod-files.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -39,9 +41,12 @@
     "react-native-webview": "^13.16.1"
   },
   "devDependencies": {
+    "@jitl/quickjs-ng-wasmfile-release-sync": "0.32.0",
     "@types/node": "^22.0.0",
     "@types/react": "~19.2.18",
     "eas-cli": "^27.2.0",
+    "esbuild": "^0.28.2",
+    "quickjs-emscripten-core": "0.32.0",
     "typescript": "~6.0.3",
     "vitest": "^3.2.4"
   },

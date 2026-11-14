@@ -84,6 +84,9 @@ importers:
         specifier: ^13.16.1
         version: 13.16.1(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
     devDependencies:
+      '@jitl/quickjs-ng-wasmfile-release-sync':
+        specifier: 0.32.0
+        version: 0.32.0
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -93,6 +96,12 @@ importers:
       eas-cli:
         specifier: ^27.2.0
         version: 27.2.0(@types/node@22.20.5)(typescript@6.0.3)
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+      quickjs-emscripten-core:
+        specifier: 0.32.0
+        version: 0.32.0
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -1014,6 +1023,12 @@ packages:
   '@jest/types@29.6.3':
     resolution: {integrity: sha512-u3UPsIilWKOM3F9CXtrG8LEJmNxwoCQC/XVj4IKYXvvpx7QIi/Kg1LI5uDmDpKlac62NUtX7eLjRh+jVZcLOzw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
+
+  '@jitl/quickjs-ffi-types@0.32.0':
+    resolution: {integrity: sha512-v9T+GQpmk43VDJ7d72sf0Nexhk+ArvtUihW27dy7lqAl0zBObFKtSBBIm5RBjwIhE8VwsPPm9PNuvPvNqLWUEg==}
+
+  '@jitl/quickjs-ng-wasmfile-release-sync@0.32.0':
+    resolution: {integrity: sha512-XAX2jjZWWh3M0YaRqi82xMKNW/gkF6mo3MpW3UY2cmVxnQai1JuboVsJQVoLU629iEL4XWvHtO4h5lo7NRnAcg==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -3769,6 +3784,9 @@ packages:
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
 
+  quickjs-emscripten-core@0.32.0:
+    resolution: {integrity: sha512-QFnPfjFey8EqknSrSxe1hZrf1/8z7/6s1QzGOmKo6++02r7QRRX7ZoyNaZh7JuVjWsVW87KnQrbZqnHkOAzUyg==}
+
   range-parser@1.2.1:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
@@ -5963,6 +5981,12 @@ snapshots:
       '@types/node': 22.20.5
       '@types/yargs': 17.0.35
       chalk: 4.1.2
+
+  '@jitl/quickjs-ffi-types@0.32.0': {}
+
+  '@jitl/quickjs-ng-wasmfile-release-sync@0.32.0':
+    dependencies:
+      '@jitl/quickjs-ffi-types': 0.32.0
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -9166,6 +9190,10 @@ snapshots:
       strict-uri-encode: 2.0.0
 
   queue-microtask@1.2.3: {}
+
+  quickjs-emscripten-core@0.32.0:
+    dependencies:
+      '@jitl/quickjs-ffi-types': 0.32.0
 
   range-parser@1.2.1: {}
 
