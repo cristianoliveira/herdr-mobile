@@ -27,8 +27,15 @@ both `adb reverse` lines again. The SSH tunnel uses 2222 because the phone's
 `~/.ssh/authorized_keys` as `herdr-mobile@Pixel-7`; reinstalling the app makes
 a new one.
 
+The app syncs its definition from `~/.config/herdr-mobile` on `mini`, the same
+home your own phone uses. Try mods and layouts there under new names, and
+remove them afterwards; editing a shipped file moves it aside to
+`<name>-edited` on the next connect.
+
 Drive the phone with Maestro, which finds elements by their text, and take a
-screenshot to show a change:
+screenshot to show a change. `adb shell input text` sends key presses, and two
+`r`s close together reload the development client (React Native's double R),
+so type text with `r`s one key at a time:
 
 ```sh
 maestro --no-ansi hierarchy --compact     # what is on screen

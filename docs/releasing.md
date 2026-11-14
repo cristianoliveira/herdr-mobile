@@ -7,7 +7,8 @@ There are two paths. Pick by what changed (see
 
 CI (`.github/workflows/ci.yml`) runs typecheck and tests, then publishes an
 update to the EAS `preview` channel, which the APK is built to follow. A push
-that changes only Markdown publishes nothing. Updates are published for
+that changes only the repo's docs (top-level Markdown and `docs/`) publishes
+nothing; the shipped home's Markdown is app content and does publish. Updates are published for
 Android only. CI needs the `EXPO_TOKEN` repository secret. When CI is down,
 publish by hand:
 

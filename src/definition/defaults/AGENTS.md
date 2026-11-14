@@ -205,6 +205,9 @@ Rules:
 - Text styles (`text_color`, `text_size`, `font_*`, `truncate`) apply to the
   strings inside an element, and color the `svg()` and `icon()` inside.
 - Touch targets want room: rows of 44 px or more.
+- A sheet doesn't shrink when the keyboard opens. In a sheet with a text field
+  near its bottom, keep it short (about 370 px tall on a phone) or put the field
+  at the top.
 - Animate with `.spin(ms)` (a spinner icon, `icons/ui/spinner.svg`), never
   with a timer.
 

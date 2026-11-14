@@ -59,7 +59,8 @@ jobs:
         run: |
           if ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$BEFORE" "$AFTER" -- . ':(exclude)*.md'; then
+          # The repo's own docs don't ship; the shipped home's Markdown (the agents' guide) does.
+          elif git diff --quiet "$BEFORE" "$AFTER" -- . ':(exclude,glob)*.md' ':(exclude,glob)docs/**'; then
             echo "relevant=false" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=true" >> "$GITHUB_OUTPUT"
